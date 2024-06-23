@@ -1,0 +1,10 @@
+[package]
+name = "smartcube"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+btleplug = "0.11"
+cubestruct = { path = "../cubestruct" }
+futures = "0.3"
