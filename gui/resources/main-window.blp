@@ -1,0 +1,42 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.ApplicationWindow window {
+	default-width: 1000;
+	default-height: 600;
+	width-request: 400;
+	height-request: 300;
+	title: "Puzzle Time";
+	content: Adw.ToastOverlay toasts {
+		Adw.ToolbarView {
+			top-bar-style: raised;
+
+			[top]
+			Adw.HeaderBar {
+				[start]
+				ToggleButton {
+					icon-name: "open-menu-symbolic";
+				}
+
+				[end]
+				ToggleButton sidebar_toggle {
+					icon-name: "sidebar-show-right-symbolic";
+					active: true;
+				}
+			}
+
+			content: Adw.OverlaySplitView stats_pane {
+				sidebar-position: end;
+				sidebar-width-fraction: 0.4;
+				show-sidebar: bind sidebar_toggle.active bidirectional;
+			};
+		}
+	};
+
+	Adw.Breakpoint {
+		condition ("max-width: 600sp")
+		setters {
+			stats_pane.collapsed: true;
+		}
+	}
+}

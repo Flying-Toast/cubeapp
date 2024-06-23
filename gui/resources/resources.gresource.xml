@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+	<gresource prefix="/io/github/flying-toast/puzzle-time/">
+		<file>main.css</file>
+		<file preprocess="xml-stripblanks">timer.ui</file>
+		<file preprocess="xml-stripblanks">main-window.ui</file>
+		<file preprocess="xml-stripblanks">stats.ui</file>
+		<file preprocess="xml-stripblanks">stat-item.ui</file>
+		<file preprocess="xml-stripblanks">stat-info-dialog.ui</file>
+	</gresource>
+	<gresource prefix="/io/github/flying-toast/puzzle-time/icons/scalable/actions">
+		<file preprocess="xml-stripblanks">stopwatch-symbolic.svg</file>
+		<file preprocess="xml-stripblanks">right-small-symbolic.svg</file>
+	</gresource>
+</gresources>

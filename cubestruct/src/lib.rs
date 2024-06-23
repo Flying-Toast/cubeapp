@@ -1,6 +1,6 @@
 // TODO: better & generic cubestate inner implementation (don't make it Qiyi specific) (use group theory definition!!!!)
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CubeState {
     pub facelets: [Color; 54],
 }

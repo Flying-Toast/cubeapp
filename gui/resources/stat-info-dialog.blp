@@ -1,0 +1,44 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.Dialog root {
+	Adw.ToolbarView {
+		[top]
+		Adw.HeaderBar {}
+
+		content: Box {
+			hexpand: true;
+			orientation: vertical;
+
+			ListBox {
+				selection-mode: none;
+				margin-start: 12;
+				margin-end: 12;
+				margin-top: 12;
+				margin-bottom: 12;
+				styles [ "boxed-list" ]
+
+				Adw.ActionRow {
+					title: "(TODO) F U2 B L2 F R2 F2 U2 R2 U R D' U' L' R2 D2 L' D F U2";
+					subtitle: "Scramble";
+				}
+
+				Adw.ActionRow {
+					title: "(TODO) Sun Jun 30 10:51:16 PM";
+					subtitle: "Date";
+				}
+			}
+
+			Adw.Bin {
+				vexpand: true;
+				Button delete_button {
+					valign: end;
+					halign: center;
+					margin-bottom: 8;
+					styles [ "destructive-action" ]
+					label: "Delete";
+				}
+			}
+		};
+	}
+}

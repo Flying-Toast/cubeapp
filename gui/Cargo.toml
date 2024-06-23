@@ -1,0 +1,12 @@
+[package]
+name = "gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.8", features = ["v4_14"] }
+adw = { package = "libadwaita", version = "0.6", features = ["v1_5"] }
+futures = "0.3"
+
+[build-dependencies]
+glib-build-tools = "0.19"

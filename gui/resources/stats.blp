@@ -1,0 +1,87 @@
+using Gtk 4.0;
+using Adw 1;
+
+Box root {
+	orientation: vertical;
+	styles [ "view" ]
+
+	Adw.StatusPage statuspage {
+		vexpand: true;
+		icon-name: "stopwatch-symbolic";
+		title: "No Results";
+		description: "Use the timer to record a solve.";
+		styles [ "compact" ]
+	}
+
+	Box {
+		visible: bind statuspage.visible inverted;
+		orientation: vertical;
+		vexpand: true;
+
+		Box {
+			orientation: vertical;
+			margin-top: 12;
+			margin-start: 12;
+			margin-end: 12;
+			margin-bottom: 12;
+			spacing: 12;
+
+			Box {
+				styles [ "card" ]
+				orientation: vertical;
+				Box {
+					orientation: vertical;
+					margin-top: 4;
+					margin-bottom: 4;
+					Label session_average_label { styles [ "title-3" ]}
+					Label { label: "Session Average"; styles [ "dim-label" ] }
+				}
+			}
+
+			Box {
+				orientation: horizontal;
+				halign: fill;
+				spacing: 12;
+				Box {
+					styles [ "card" ]
+					orientation: vertical;
+					hexpand: true;
+					Box {
+						orientation: vertical;
+						margin-top: 4;
+						margin-bottom: 4;
+						Label ao5_label { styles [ "title-3" ]}
+						Label { label: "Average of 5"; styles [ "dim-label" ] }
+					}
+				}
+				Box {
+					styles [ "card" ]
+					orientation: vertical;
+					hexpand: true;
+					Box {
+						orientation: vertical;
+						margin-top: 4;
+						margin-bottom: 4;
+						Label best_ao5 { styles [ "title-3" ]}
+						Label { label: "Best Average of 5"; styles [ "dim-label" ] }
+					}
+				}
+			}
+		}
+
+		Label {
+			halign: start;
+			margin-start: 8;
+			label: "Results";
+			styles [ "heading" ]
+		}
+
+		ScrolledWindow {
+			vexpand: true;
+			ListView listview {
+				styles [ "navigation-sidebar" ]
+				factory: SignalListItemFactory listview_factory {};
+			}
+		}
+	}
+}

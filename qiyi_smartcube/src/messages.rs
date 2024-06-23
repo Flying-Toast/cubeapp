@@ -62,30 +62,6 @@ impl<'a> C2aMessage<'a> {
     }
 }
 
-fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
-    CubeState {
-        facelets: raw
-            .iter()
-            .flat_map(|&x| [x & 0xf, (x & 0xF0) >> 4])
-            .map(|x| color_from_u8(x).unwrap())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap(),
-    }
-}
-
-fn color_from_u8(x: u8) -> Option<Color> {
-    Some(match x {
-        0 => Color::Orange,
-        1 => Color::Red,
-        2 => Color::Yellow,
-        3 => Color::White,
-        4 => Color::Green,
-        5 => Color::Blue,
-        _ => return None,
-    })
-}
-
 /// The "body" of a cube->app message is the decrypted contents
 /// minus the `0xfe` prefix, length, opcode, padding, and checksum.
 #[derive(Debug)]
@@ -97,7 +73,6 @@ pub enum C2aBody {
 #[derive(Debug)]
 pub struct CubeHello {
     pub state: CubeState,
-    /// between 0..=100
     pub battery: u8,
 }
 
@@ -159,9 +134,8 @@ impl fmt::Display for Turn {
 #[derive(Debug)]
 pub struct StateChange {
     pub state: CubeState,
-    pub turn: Turn,
-    /// between 0..=100
     pub battery: u8,
+    pub turn: Turn,
 }
 
 #[derive(Error, Debug)]
@@ -277,5 +251,29 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
         ack_head: p.get_bytes(2, 5)?,
         millis_timestamp,
         body,
+    })
+}
+
+fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
+    CubeState {
+        facelets: raw
+            .iter()
+            .flat_map(|&x| [x & 0xf, (x & 0xF0) >> 4])
+            .map(|x| color_from_u8(x).unwrap())
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap(),
+    }
+}
+
+fn color_from_u8(x: u8) -> Option<Color> {
+    Some(match x {
+        0 => Color::Orange,
+        1 => Color::Red,
+        2 => Color::Yellow,
+        3 => Color::White,
+        4 => Color::Green,
+        5 => Color::Blue,
+        _ => return None,
     })
 }

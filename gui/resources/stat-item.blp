@@ -1,0 +1,38 @@
+using Gtk 4.0;
+using Adw 1;
+
+Box root {
+	GestureClick gestureclick {}
+
+	Box {
+		Box {
+			styles [ "index-label-wrapper" ]
+			Label index_label {
+				margin-end: 10;
+				halign: start;
+				styles [ "numeric", "dim-label" ]
+			}
+		}
+
+		Label time_label {}
+	}
+
+	Box {
+		hexpand: true;
+		halign: end;
+
+		Box {
+			margin-top: 4;
+			margin-bottom: 4;
+			margin-end: 10;
+			styles [ "linked" ]
+
+			ToggleButton plus2_btn { label: "+2"; }
+			ToggleButton dnf_btn { label: "DNF"; }
+		}
+
+		Image {
+			icon-name: "right-small-symbolic";
+		}
+	}
+}

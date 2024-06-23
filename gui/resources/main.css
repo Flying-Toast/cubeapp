@@ -1,0 +1,34 @@
+.bigtime {
+	font-size: 8em;
+	font-weight: 300;
+}
+
+.timer-light {
+	min-width: 22px;
+	min-height: 22px;
+	border-radius: 22px;
+}
+
+.timer-light-red {
+	background: linear-gradient(#f66151, #e01b24);
+}
+
+.timer-light-green {
+	background: linear-gradient(#57e389, #26a269);
+}
+
+.timer-light-off {
+	background: linear-gradient(#77767b, #5e5c64);
+}
+
+.strikethrough {
+	text-decoration: line-through;
+}
+
+.index-label-wrapper {
+	min-width: 2.6em;
+}
+
+.scramble {
+	font-size: 1.4em;
+}
