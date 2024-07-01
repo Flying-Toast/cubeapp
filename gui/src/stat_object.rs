@@ -27,13 +27,13 @@ impl SolveStat {
         tx
     }
 
-    pub fn get_time(&self) -> Duration {
-        let mut ret = self.imp().time.get();
-        if self.penalty() == Penalty::Plus2 {
-            ret += Duration::from_secs(2);
+    /// Returns `None` if DNF
+    pub fn get_time(&self) -> Option<Duration> {
+        match self.penalty() {
+            Penalty::None => Some(self.imp().time.get()),
+            Penalty::Plus2 => Some(self.imp().time.get() + Duration::from_secs(2)),
+            Penalty::Dnf => None,
         }
-
-        ret
     }
 }
 
@@ -85,7 +85,13 @@ impl ObjectImpl for SolveStatImp {
 
     fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
-            "time-string" => crate::timer::render_time(&self.obj().get_time(), true).to_value(),
+            "time-string" => {
+                if let Some(dur) = self.obj().get_time() {
+                    crate::timer::render_time(&dur, true).to_value()
+                } else {
+                    "DNF".to_value()
+                }
+            }
             "is-dnf" => (self.obj().penalty() == Penalty::Dnf).to_value(),
             "is-plus2" => (self.obj().penalty() == Penalty::Plus2).to_value(),
             _ => self.derived_property(id, pspec),

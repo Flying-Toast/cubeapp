@@ -1,5 +1,6 @@
 use crate::prelude::*;
 pub use crate::stat_object::SolveStat;
+use std::cmp::Ordering;
 use std::time::Duration;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, glib::Enum)]
@@ -158,16 +159,6 @@ impl Stats {
         self.store.remove(index);
     }
 
-    fn num_nondnf(&self) -> u32 {
-        self.fold_stats(0, |acc, s| {
-            if s.penalty() == Penalty::Dnf {
-                acc
-            } else {
-                acc + 1
-            }
-        })
-    }
-
     pub fn set_backup(&mut self, backup: (u32, SolveStat)) {
         self.backup = Some(backup);
     }
@@ -177,39 +168,103 @@ impl Stats {
     }
 
     /// Returns the number of stats that are in the store
-    pub fn length(&self) -> u32 {
+    fn length(&self) -> u32 {
         self.store.n_items()
     }
 
-    pub fn fold_stats<T, F: Fn(T, SolveStat) -> T>(&self, init: T, f: F) -> T {
-        let mut acc = init;
-        for i in 0..self.length() {
-            acc = f(acc, self.get_stat(i).unwrap());
-        }
-        acc
-    }
-
     pub fn update_stats(&self) {
-        self.ao5_label.set_label("12345");
-        self.best_ao5.set_label("45678");
-        if self.num_nondnf() > 0 {
-            self.session_average_label
-                .set_label(&crate::timer::render_time(&self.average_time(), true));
+        if self.length() < 5 {
+            self.ao5_label.set_label("-");
+            self.best_ao5.set_label("-");
         } else {
-            self.session_average_label.set_label("DNF");
+            self.ao5_label
+                .set_label(&format!("{}", self.ao5_at(self.length() - 5)));
+            self.best_ao5.set_label(&format!("{}", self.best_ao5()));
+        }
+        if self.length() > 0 {
+            self.session_average_label
+                .set_label(&format!("{}", self.session_average()));
         }
     }
 
-    pub fn average_time(&self) -> Duration {
-        let sum = self.fold_stats(Duration::default(), |acc, stat| {
-            acc + if stat.penalty() == Penalty::Dnf {
-                Duration::default()
-            } else {
-                stat.get_time()
-            }
+    fn ao5_at(&self, start_idx: u32) -> Average {
+        let mut times = (start_idx..start_idx + 5)
+            .map(|idx| self.get_stat(idx).unwrap().get_time())
+            .collect::<Vec<_>>();
+
+        let num_dnfs = times.iter().filter(|x| x.is_none()).count();
+
+        if num_dnfs > 1 {
+            return Average::Dnf;
+        }
+
+        times.sort_unstable_by(|a, b| match (a, b) {
+            (None, None) => Ordering::Equal,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(l), Some(r)) => l.cmp(&r),
         });
 
-        sum / self.num_nondnf()
+        times.remove(4);
+        times.remove(0);
+        assert_eq!(times.len(), 3);
+        let sum: Duration = times.iter().flatten().sum();
+
+        Average::Some(sum / 3)
+    }
+
+    fn session_average(&self) -> Average {
+        let mut times = (0..self.length())
+            .map(|idx| self.get_stat(idx).unwrap().get_time())
+            .collect::<Vec<_>>();
+
+        let num_dnfs = times.iter().filter(|x| x.is_none()).count();
+
+        if num_dnfs == self.length() as usize {
+            return Average::Dnf;
+        }
+
+        times.sort_unstable_by(|a, b| match (a, b) {
+            (None, None) => Ordering::Equal,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(l), Some(r)) => l.cmp(&r),
+        });
+
+        let sum: Duration = times.iter().flatten().sum();
+
+        Average::Some(sum / self.length())
+    }
+
+    fn best_ao5(&self) -> Average {
+        let mut averages = Vec::new();
+        for start_idx in 0..=self.length() - 5 {
+            averages.push(self.ao5_at(start_idx));
+        }
+        averages
+            .into_iter()
+            .min_by(|a, b| match (a, b) {
+                (Average::Dnf, Average::Dnf) => Ordering::Equal,
+                (Average::Some(_), Average::Dnf) => Ordering::Less,
+                (Average::Dnf, Average::Some(_)) => Ordering::Greater,
+                (Average::Some(x), Average::Some(y)) => x.cmp(y),
+            })
+            .unwrap()
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum Average {
+    Dnf,
+    Some(Duration),
+}
+
+impl std::fmt::Display for Average {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Average::Dnf => write!(f, "DNF"),
+            Average::Some(time) => write!(f, "{}", crate::timer::render_time(&time, true)),
+        }
     }
 }
 
