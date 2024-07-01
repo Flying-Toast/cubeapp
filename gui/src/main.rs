@@ -1,3 +1,4 @@
+mod bluetooth;
 mod prelude;
 mod stat_object;
 mod stats;
@@ -8,7 +9,7 @@ use futures::{channel::mpsc, stream::StreamExt};
 use stats::SolveStat;
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Event {
     SpacebarDown,
     SpacebarUp,
@@ -24,11 +25,19 @@ pub enum Event {
     DeleteStat(u32),
     RestoreDeletedStat,
     StatsChanged,
+    ShowBluetoothPopup,
+    StopBluetoothScan,
+    BluetoothInitialized(smartcube::BluetoothManager),
+    BluetoothDeviceDiscoverd(smartcube::Device),
+    BluetoothDeviceConnected(smartcube::DeviceId),
+    BluetoothDeviceDisconnected(smartcube::DeviceId),
+    Smartcube(smartcube::SmartcubeEvent),
 }
 
 #[derive(Debug)]
 struct CubeApp {
     application: adw::Application,
+    bluetooth: bluetooth::Bluetooth,
     window: adw::ApplicationWindow,
     toasts: adw::ToastOverlay,
     timer: timer::Timer,
@@ -51,10 +60,17 @@ impl CubeApp {
         quit_act.connect_activate(move |_, _| send_evt(tx2.clone(), Event::Quit));
         app.set_accels_for_action("app.quit", &["<Primary>Q"]);
         app.add_action(&quit_act);
+
         let remove_undo = gio::SimpleAction::new("undo-remove-stat", None);
         let tx2 = tx.clone();
         remove_undo.connect_activate(move |_, _| send_evt(tx2.clone(), Event::RestoreDeletedStat));
         app.add_action(&remove_undo);
+
+        let bluetooth_popup_act = gio::SimpleAction::new("bluetooth-popup", None);
+        let tx2 = tx.clone();
+        bluetooth_popup_act
+            .connect_activate(move |_, _| send_evt(tx2.clone(), Event::ShowBluetoothPopup));
+        app.add_action(&bluetooth_popup_act);
 
         let timer = timer::Timer::new(tx.clone());
 
@@ -85,15 +101,17 @@ impl CubeApp {
 
         window.present();
 
+        let toasts: adw::ToastOverlay = builder.object("toasts").unwrap();
         Self {
             application: app,
+            bluetooth: bluetooth::Bluetooth::new(tx.clone(), toasts.clone()),
             tx,
             timer,
             stats,
             spacebar_being_held: false,
             window,
             timer_ready: false,
-            toasts: builder.object("toasts").unwrap(),
+            toasts,
             greenlight_timeout: None,
         }
     }
@@ -216,11 +234,34 @@ fn main() {
                             app.stats.insert_stat(idx, &stat);
                         } else {
                             app.toasts
-                                .add_toast(adw::Toast::new(&"Failed to Undo Deletion"));
+                                .add_toast(adw::Toast::new("Failed to Undo Deletion"));
                         }
                     }
                     Event::StatsChanged => {
                         app.stats.update_stats();
+                    }
+                    Event::ShowBluetoothPopup => {
+                        app.bluetooth.maybe_init();
+                        app.bluetooth.start_scan();
+                        app.bluetooth.dialog().present(&app.window);
+                    }
+                    Event::BluetoothInitialized(manager) => {
+                        app.bluetooth.manager_ready(manager);
+                    }
+                    Event::BluetoothDeviceDiscoverd(dev) => {
+                        app.bluetooth.add_discovered_device(dev);
+                    }
+                    Event::BluetoothDeviceConnected(id) => {
+                        app.bluetooth.device_connected(id);
+                    }
+                    Event::BluetoothDeviceDisconnected(id) => {
+                        app.bluetooth.device_disconnected(id);
+                    }
+                    Event::Smartcube(evt) => {
+                        app.bluetooth.handle_smartcube_event(evt);
+                    }
+                    Event::StopBluetoothScan => {
+                        app.bluetooth.stop_scan();
                     }
                 }
             }

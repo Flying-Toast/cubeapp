@@ -1,7 +1,7 @@
 ///! Utils for generically interacting with smartcubes
 use btleplug::api::{Central as _, CentralEvent, Manager as _, Peripheral as _};
 use btleplug::platform::{Adapter, Manager, Peripheral, PeripheralId};
-use futures::stream::{self, Stream, StreamExt};
+use futures::stream::{Stream, StreamExt};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -31,7 +31,6 @@ pub enum SmartcubeEvent {
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct DeviceId(PeripheralId);
 
-// TODO: Clone = bad?
 #[derive(Debug, Clone)]
 pub struct Device {
     perip: Peripheral,
@@ -49,7 +48,7 @@ impl Device {
     }
 
     pub fn local_name(&self) -> &str {
-        &self.local_name
+        &self.local_name.trim()
     }
 
     /// Connect to the device and start receiving events
@@ -91,7 +90,6 @@ pub enum ConnectionEvent {
     Discovery(Device),
 }
 
-/// Central bluetooth interface
 #[derive(Debug)]
 pub struct BluetoothManager {
     drivers: &'static [&'static dyn Driver],
@@ -112,13 +110,6 @@ impl BluetoothManager {
                 .unwrap()
                 .filter_map(move |evt| filter_map_event(drivers, Arc::clone(&adapter), evt))
         }
-    }
-
-    pub async fn discovered_devices(&self) -> Vec<Device> {
-        stream::iter(self.adapter.peripherals().await.unwrap())
-            .filter_map(|perip| async { make_device_if_supported(self.drivers, perip).await })
-            .collect()
-            .await
     }
 
     pub async fn start_scan(&self) {
