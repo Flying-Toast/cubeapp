@@ -1,6 +1,13 @@
 using Gtk 4.0;
 using Adw 1;
 
+menu main_menu {
+	item {
+		label: "Bluetooth Devices";
+		action: "app.bluetooth-popup";
+	}
+}
+
 Adw.ApplicationWindow window {
 	default-width: 1000;
 	default-height: 600;
@@ -14,8 +21,9 @@ Adw.ApplicationWindow window {
 			[top]
 			Adw.HeaderBar {
 				[start]
-				ToggleButton {
+				MenuButton {
 					icon-name: "open-menu-symbolic";
+					menu-model: main_menu;
 				}
 
 				[end]

@@ -21,10 +21,6 @@
 	background: linear-gradient(#77767b, #5e5c64);
 }
 
-.strikethrough {
-	text-decoration: line-through;
-}
-
 .index-label-wrapper {
 	min-width: 2.6em;
 }

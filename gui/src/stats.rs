@@ -84,7 +84,7 @@ impl Stats {
                         Some(match penalty {
                             Penalty::None => ["numeric"].as_slice(),
                             Penalty::Plus2 => ["warning", "numeric"].as_slice(),
-                            Penalty::Dnf => ["strikethrough", "error", "numeric"].as_slice(),
+                            Penalty::Dnf => ["error", "numeric"].as_slice(),
                         })
                     })
                     .sync_create()
