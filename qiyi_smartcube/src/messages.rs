@@ -36,8 +36,7 @@ impl<'a> C2aMessage<'a> {
     fn needs_ack(&self) -> bool {
         match &self.body {
             C2aBody::CubeHello(_) => true,
-            // Only solved state changes need to be ACKed
-            C2aBody::StateChange(sc) => sc.state.is_solved(),
+            C2aBody::StateChange(sc) => sc.needs_ack,
         }
     }
 
@@ -136,6 +135,7 @@ pub struct StateChange {
     pub state: CubeState,
     pub battery: u8,
     pub turn: Turn,
+    pub needs_ack: bool,
 }
 
 #[derive(Error, Debug)]
@@ -233,10 +233,12 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
             let rawstate = p.get_bytes(7, 27)?;
             let turnbyte = p.get_u8(34)?;
             let battery = p.get_u8(35)?;
+            let needs_ack = p.get_u8(91)? == 1;
 
             C2aBody::StateChange(StateChange {
                 turn: Turn::from_byte(turnbyte)?,
                 state: cubestate_from_bytes(rawstate),
+                needs_ack,
                 battery,
             })
         }

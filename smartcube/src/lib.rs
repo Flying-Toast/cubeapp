@@ -90,7 +90,7 @@ pub enum ConnectionEvent {
     Discovery(Device),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BluetoothManager {
     drivers: &'static [&'static dyn Driver],
     adapter: Arc<Adapter>,
