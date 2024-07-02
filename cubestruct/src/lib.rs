@@ -6,17 +6,21 @@ pub struct CubeState {
 }
 
 impl CubeState {
-    pub fn is_solved(&self) -> bool {
+    pub fn new_solved() -> Self {
         use Color::*;
-
-        self.facelets
-            == [
+        Self {
+            facelets: [
                 White, White, White, White, White, White, White, White, White, Red, Red, Red, Red,
                 Red, Red, Red, Red, Red, Green, Green, Green, Green, Green, Green, Green, Green,
                 Green, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow,
                 Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange, Blue, Blue,
                 Blue, Blue, Blue, Blue, Blue, Blue, Blue,
-            ]
+            ],
+        }
+    }
+
+    pub fn is_solved(&self) -> bool {
+        self.facelets == Self::new_solved().facelets
     }
 
     /// Returns the colors of the facelets on the face whose center piece is `center_color`.

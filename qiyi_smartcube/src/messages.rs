@@ -235,9 +235,16 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
             let battery = p.get_u8(35)?;
             let needs_ack = p.get_u8(91)? == 1;
 
+            // workaround for slice move glitch
+            let state = if needs_ack {
+                CubeState::new_solved()
+            } else {
+                cubestate_from_bytes(rawstate)
+            };
+
             C2aBody::StateChange(StateChange {
                 turn: Turn::from_byte(turnbyte)?,
-                state: cubestate_from_bytes(rawstate),
+                state,
                 needs_ack,
                 battery,
             })
