@@ -1,7 +1,7 @@
 use crate::crc::crc16;
 use anyhow::{anyhow, bail, Result};
 use btleplug::api::BDAddr;
-use cubestruct::{Color, CubeState};
+use cubestruct::{dumb::Color, CubeState};
 use std::fmt;
 use thiserror::Error;
 
@@ -237,7 +237,7 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
 
             // workaround for slice move glitch
             let state = if needs_ack {
-                CubeState::new_solved()
+                CubeState::SOLVED
             } else {
                 cubestate_from_bytes(rawstate)
             };
