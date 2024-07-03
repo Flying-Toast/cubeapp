@@ -1,4 +1,5 @@
 ///! Array types that are indexed by cubicles instead of `usize`
+// TODO: DRY this stuff
 use crate::cubiestate::{CornerCubicle, EdgeCubicle};
 use std::ops::{Index, IndexMut};
 
@@ -10,6 +11,10 @@ pub struct CornerCubicleIndexed<T>([T; 8]);
 impl<T> CornerCubicleIndexed<T> {
     pub const fn new(array: [T; 8]) -> Self {
         Self(array)
+    }
+
+    pub fn swap(&mut self, a: CornerCubicle, b: CornerCubicle) {
+        self.0.swap(a as usize, b as usize);
     }
 }
 
@@ -42,6 +47,10 @@ pub struct EdgeCubicleIndexed<T>([T; 12]);
 impl<T> EdgeCubicleIndexed<T> {
     pub const fn new(array: [T; 12]) -> Self {
         Self(array)
+    }
+
+    pub fn swap(&mut self, a: EdgeCubicle, b: EdgeCubicle) {
+        self.0.swap(a as usize, b as usize);
     }
 }
 

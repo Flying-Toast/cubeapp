@@ -62,11 +62,36 @@ impl CubeState {
         } else {
             Ok(Self { corners, edges })
         }
-        ////////////////////////////////////////////////////////////////
-        // TODO: return Err::ImpossibleState if it's an impossible state
-        ////////////////////////////////////////////////////////////////
-        // TODO: factor the checking for CubeConstructionError out into
-        // a `check_invariant()` fn to use in tests n stuff too
+    }
+
+    fn cornerperm_2cycles(&self) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
+        crate::iter_2cycles::CornerPerm2Cycles::new(self.corners)
+    }
+
+    fn edgeperm_2cycles(&self) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
+        crate::iter_2cycles::EdgePerm2Cycles::new(self.edges)
+    }
+
+    fn is_possible_state(&self) -> bool {
+        let total_edge_orientation = self
+            .edges
+            .into_iter()
+            .map(|x| x.orientation())
+            .reduce(EdgeOrientation::mul)
+            .unwrap();
+        let total_corner_orientation = self
+            .corners
+            .into_iter()
+            .map(|x| x.orientation())
+            .reduce(CornerOrientation::mul)
+            .unwrap();
+
+        let corners_odd = self.cornerperm_2cycles().count() & 1 == 1;
+        let edges_odd = self.edgeperm_2cycles().count() & 1 == 1;
+
+        total_edge_orientation == EdgeOrientation::O0
+            && total_corner_orientation == CornerOrientation::O0
+            && corners_odd == edges_odd
     }
 
     #[must_use]
@@ -177,13 +202,34 @@ impl CubeState {
 pub enum CubeStateConstructionError {
     #[error("One or more cubicle(s) did not have a cube in them")]
     EmptyCubicles,
-    #[error("Attempted to create a CubeState for an impossible state")]
-    ImpossibleState,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn possible_states() {
+        assert!(CubeState::SOLVED.is_possible_state());
+        assert!(TPERM.is_possible_state());
+        assert!(RMOVE.is_possible_state());
+        let one_edge_flipped = {
+            let mut ret = CubeState::SOLVED;
+            ret.edges[EdgeCubicle::C0] = EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O1);
+            ret
+        };
+        assert!(!one_edge_flipped.is_possible_state());
+
+        let two_corners_swapped = {
+            let mut ret = CubeState::SOLVED;
+            let c0 = ret.corners[CornerCubicle::C0];
+            ret.corners[CornerCubicle::C0] = ret.corners[CornerCubicle::C1];
+            ret.corners[CornerCubicle::C1] = c0;
+            ret
+        };
+
+        assert!(!two_corners_swapped.is_possible_state());
+    }
 
     #[test]
     fn group_ops() {
