@@ -47,6 +47,13 @@ impl CornerOrientation {
             Self::O2 => Self::O1,
         }
     }
+
+    /// Combines two orientations
+    pub fn mul(self, rhs: Self) -> Self {
+        let sum = self as u8 + rhs as u8;
+        // SAFETY: Modulo 3 always produces a value 0..=2, which are all valid `CornerOrientation`s
+        unsafe { transmute::<u8, CornerOrientation>(sum % 3) }
+    }
 }
 
 /// Permutation + orientation of a single corner cubie
@@ -66,21 +73,18 @@ impl fmt::Debug for CornerState {
 
 impl CornerState {
     #[must_use]
-    #[inline]
     pub const fn new(p: CornerCubicle, o: CornerOrientation) -> Self {
         Self(((o as u8) << 3) | (p as u8))
     }
 
     /// What cubicle this corner is in
     #[must_use]
-    #[inline]
     pub const fn cubicle(self) -> CornerCubicle {
         // SAFETY: All possible 3-bit numbers are a valid CornerCubicle
         unsafe { transmute::<u8, CornerCubicle>(self.0 & 0b111) }
     }
 
     #[must_use]
-    #[inline]
     pub const fn orientation(self) -> CornerOrientation {
         // SAFETY: All ways of constructing a `CornerState` preserve this invariant
         unsafe { transmute::<u8, CornerOrientation>(self.0 >> 3) }
@@ -136,6 +140,12 @@ impl EdgeOrientation {
     pub fn inverse(self) -> Self {
         self
     }
+
+    /// Combines two orientations
+    pub fn mul(self, rhs: Self) -> Self {
+        // SAFETY: all ways of ORing {1,0} will yield 1 or 0
+        unsafe { transmute::<u8, EdgeOrientation>(self as u8 | rhs as u8) }
+    }
 }
 
 /// Permutation + orientation of a single edge cubie
@@ -155,21 +165,18 @@ impl fmt::Debug for EdgeState {
 
 impl EdgeState {
     #[must_use]
-    #[inline]
     pub const fn new(p: EdgeCubicle, o: EdgeOrientation) -> Self {
         Self(((p as u8) << 1) | (o as u8))
     }
 
     /// What cubicle this edge is in
     #[must_use]
-    #[inline]
     pub const fn cubicle(self) -> EdgeCubicle {
         // SAFETY: Invariant upheld by constructors
         unsafe { transmute::<u8, EdgeCubicle>(self.0 >> 1) }
     }
 
     #[must_use]
-    #[inline]
     pub const fn orientation(self) -> EdgeOrientation {
         // SAFETY: All 1-bit numbers are a valid EdgeOrientation
         unsafe { transmute::<u8, EdgeOrientation>(self.0 & 1) }
