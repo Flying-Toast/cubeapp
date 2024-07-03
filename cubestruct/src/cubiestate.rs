@@ -15,8 +15,7 @@ pub enum CornerCubicle {
 }
 
 impl CornerCubicle {
-    #[cfg(test)]
-    fn all() -> impl Iterator<Item = Self> {
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
         use CornerCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7].into_iter()
     }
@@ -38,6 +37,16 @@ impl CornerOrientation {
         use CornerOrientation::*;
         [O0, O1, O2].into_iter()
     }
+
+    /// Returns the orientation that needs to be applied to this `self`
+    /// orientation in order to return it to O0.
+    pub(crate) fn inverse(self) -> Self {
+        match self {
+            Self::O0 => Self::O0,
+            Self::O1 => Self::O2,
+            Self::O2 => Self::O1,
+        }
+    }
 }
 
 /// Permutation + orientation of a single corner cubie
@@ -46,7 +55,12 @@ pub struct CornerState(u8);
 
 impl fmt::Debug for CornerState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CornerState({:?}, {:?})", self.cubicle(), self.orientation())
+        write!(
+            f,
+            "CornerState({:?}, {:?})",
+            self.cubicle(),
+            self.orientation()
+        )
     }
 }
 
@@ -91,8 +105,7 @@ pub enum EdgeCubicle {
 }
 
 impl EdgeCubicle {
-    #[cfg(test)]
-    fn all() -> impl Iterator<Item = Self> {
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
         use EdgeCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11].into_iter()
     }
@@ -112,6 +125,17 @@ impl EdgeOrientation {
         use EdgeOrientation::*;
         [O0, O1].into_iter()
     }
+
+    /// Returns the orientation that needs to be applied to this `self`
+    /// orientation in order to return it to O0.
+    ///
+    /// *Edge* orientations are their own inverse:
+    /// - Flipping a flipped edge flips it back to O0.
+    /// - By not flipping an unflipped edge you stay at the unflipped
+    /// orientation
+    pub(crate) fn inverse(self) -> Self {
+        self
+    }
 }
 
 /// Permutation + orientation of a single edge cubie
@@ -120,7 +144,12 @@ pub struct EdgeState(u8);
 
 impl fmt::Debug for EdgeState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "EdgeState({:?}, {:?})", self.cubicle(), self.orientation())
+        write!(
+            f,
+            "EdgeState({:?}, {:?})",
+            self.cubicle(),
+            self.orientation()
+        )
     }
 }
 

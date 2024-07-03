@@ -1,4 +1,5 @@
 use crate::cubestate::{CubeState, CubeStateConstructionError};
+use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
 use crate::cubiestate::{
     CornerCubicle, CornerOrientation, CornerState, EdgeCubicle, EdgeOrientation, EdgeState,
 };
@@ -23,7 +24,7 @@ impl DumbCube {
         let corner_map = {
             use Color::*;
             use CornerCubicle::*;
-            [
+            CornerCubicleIndexed::new([
                 (C0, [White, Orange, Blue], [0, 0, 2]),
                 (C1, [White, Blue, Red], [2, 0, 2]),
                 (C2, [White, Green, Orange], [6, 0, 2]),
@@ -32,12 +33,15 @@ impl DumbCube {
                 (C5, [Yellow, Red, Blue], [8, 8, 6]),
                 (C6, [Yellow, Orange, Green], [0, 8, 6]),
                 (C7, [Yellow, Green, Red], [2, 8, 6]),
-            ]
+            ])
         };
 
         // another yucky hack to avoid MaybeUninit (because logic error is easier to debug than UB)
-        let mut corners = [CornerState::new(CornerCubicle::C0, CornerOrientation::O0); 8];
-        let mut edges = [EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0); 12];
+        let mut corners = CornerCubicleIndexed::new(
+            [CornerState::new(CornerCubicle::C0, CornerOrientation::O0); 8],
+        );
+        let mut edges =
+            EdgeCubicleIndexed::new([EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
 
         for (home, home_colors, _) in corner_map {
             'orientations: for orientation in CornerOrientation::all() {
@@ -58,7 +62,7 @@ impl DumbCube {
 
                 for (cubicle, colors_in_cubicle) in colored_corner_cubies {
                     if corner_shift(colors_in_cubicle, orientation) == home_colors {
-                        corners[home as usize] = CornerState::new(cubicle, orientation);
+                        corners[home] = CornerState::new(cubicle, orientation);
                         break 'orientations;
                     }
                 }
@@ -70,7 +74,7 @@ impl DumbCube {
         let edge_map = {
             use Color::*;
             use EdgeCubicle::*;
-            [
+            EdgeCubicleIndexed::new([
                 (C0, [White, Blue], [1, 1]),
                 (C1, [White, Orange], [3, 1]),
                 (C2, [White, Red], [5, 1]),
@@ -83,7 +87,7 @@ impl DumbCube {
                 (C9, [Yellow, Orange], [3, 7]),
                 (C10, [Yellow, Red], [5, 7]),
                 (C11, [Yellow, Green], [1, 7]),
-            ]
+            ])
         };
 
         for (home, home_colors, _) in edge_map {
@@ -97,7 +101,7 @@ impl DumbCube {
 
                 for (cubicle, colors_in_cubicle) in colored_edge_cubies {
                     if edge_shift(colors_in_cubicle, orientation) == home_colors {
-                        edges[home as usize] = EdgeState::new(cubicle, orientation);
+                        edges[home] = EdgeState::new(cubicle, orientation);
                         break 'orientations;
                     }
                 }
@@ -114,7 +118,7 @@ impl DumbCube {
             use Color::*;
             use CornerCubicle::*;
             // (homecubicle, [clockwise_colors])
-            [
+            CornerCubicleIndexed::new([
                 // (C0, [White, Orange, Blue]) => the cubicle that lives in C0 has colors [W, O, B],
                 // starting on the numbered face then going around clockwise
                 (C0, [White, Orange, Blue]),
@@ -125,10 +129,10 @@ impl DumbCube {
                 (C5, [Yellow, Red, Blue]),
                 (C6, [Yellow, Orange, Green]),
                 (C7, [Yellow, Green, Red]),
-            ]
+            ])
         };
 
-        let corner_face_index_map = [
+        let corner_face_index_map = CornerCubicleIndexed::new([
             // `corner_cubie_colors` tells us that the cubie who lives at C0 has colors [W, O, B];
             // elements in the [0, 0, 2] array here correspond to the order of colors in that [W, O, B] array.
             // here, corner_face_index_map[C0] = [0, 0, 2] tells us that the C0 cubie has its white facelet
@@ -142,13 +146,13 @@ impl DumbCube {
             [8, 8, 6], // C5
             [0, 8, 6], // C6
             [2, 8, 6], // C7
-        ];
+        ]);
 
         let edge_cubie_colors = {
             use Color::*;
             use EdgeCubicle::*;
             // (homeplace, [X]) where X colors are ordered to start with the UD/FB face
-            [
+            EdgeCubicleIndexed::new([
                 (C0, [White, Blue]),
                 (C1, [White, Orange]),
                 (C2, [White, Red]),
@@ -161,7 +165,7 @@ impl DumbCube {
                 (C9, [Yellow, Orange]),
                 (C10, [Yellow, Red]),
                 (C11, [Yellow, Green]),
-            ]
+            ])
         };
 
         // example:
@@ -169,7 +173,7 @@ impl DumbCube {
         // edge_face_index_map[C2 as usize] = [5, 1]
         // => the white facelet of the C2 cubie goes in index 5 of the white face
         // => the red facelet of the C2 cubie goes in index 1 of the red face
-        let edge_face_index_map = [
+        let edge_face_index_map = EdgeCubicleIndexed::new([
             [1, 1], // C0
             [3, 1], // C1
             [5, 1], // C2
@@ -182,7 +186,7 @@ impl DumbCube {
             [3, 7], // C9
             [5, 7], // C10
             [1, 7], // C11
-        ];
+        ]);
 
         // yucky way to avoid using MaybeUninit
         let mut faces = [[Color::Blue; 9]; 6];
@@ -193,9 +197,8 @@ impl DumbCube {
             // `cornerstate.cubicle()` is the current cubicle that cubie is in
             let cornerstate = state.get_corner(home_cubicle);
             let oriented_colors = corner_shift(colors, cornerstate.orientation());
-            let cidx = cornerstate.cubicle() as usize;
-            let face_map = corner_face_index_map[cidx];
-            let cubicle_colors = corner_cubie_colors[cidx].1;
+            let face_map = corner_face_index_map[cornerstate.cubicle()];
+            let cubicle_colors = corner_cubie_colors[cornerstate.cubicle()].1;
             faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
             faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
             faces[cubicle_colors[2] as usize][face_map[2]] = oriented_colors[2];
@@ -204,9 +207,8 @@ impl DumbCube {
         for (home_cubicle, colors) in edge_cubie_colors {
             let edgestate = state.get_edge(home_cubicle);
             let oriented_colors = edge_shift(colors, edgestate.orientation());
-            let cidx = edgestate.cubicle() as usize;
-            let face_map = edge_face_index_map[cidx];
-            let cubicle_colors = edge_cubie_colors[cidx].1;
+            let face_map = edge_face_index_map[edgestate.cubicle()];
+            let cubicle_colors = edge_cubie_colors[edgestate.cubicle()].1;
             faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
             faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
         }

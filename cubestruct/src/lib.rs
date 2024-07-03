@@ -1,4 +1,5 @@
 mod cubestate;
+mod cubicle_indexed;
 mod cubiestate;
 
 pub mod dumb;

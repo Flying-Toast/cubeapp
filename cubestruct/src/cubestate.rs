@@ -1,3 +1,4 @@
+use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
 use crate::cubiestate::*;
 use crate::dumb::DumbCube;
 
@@ -29,27 +30,27 @@ use crate::dumb::DumbCube;
 #[derive(Debug, Eq, PartialEq)]
 pub struct CubeState {
     /// `corners[i]` is the state of the corner whose home is cubicle `i`.
-    /// e.g. `corners[0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
-    corners: [CornerState; 8],
+    /// e.g. `corners[C4].cubicle()` returns the cubicle in which the cubie that lives at C4 currently is located.
+    corners: CornerCubicleIndexed<CornerState>,
     /// `edges[i]` is the state of the edge whose home is cubicle `i`
-    /// e.g. `edges[0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
-    edges: [EdgeState; 12],
+    /// e.g. `edges[C0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
+    edges: EdgeCubicleIndexed<EdgeState>,
 }
 
 impl CubeState {
     /// Returns `None` if the given cubie arrays are invalid (i.e. the put multiple cubies in the same cubicle).
     pub(crate) fn try_new(
-        corners: [CornerState; 8],
-        edges: [EdgeState; 12],
+        corners: CornerCubicleIndexed<CornerState>,
+        edges: EdgeCubicleIndexed<EdgeState>,
     ) -> Result<Self, CubeStateConstructionError> {
-        let mut seen_corners = [false; 8];
-        let mut seen_edges = [false; 12];
+        let mut seen_corners = CornerCubicleIndexed::new([false; 8]);
+        let mut seen_edges = EdgeCubicleIndexed::new([false; 12]);
 
         for i in corners {
-            seen_corners[i.cubicle() as usize] = true;
+            seen_corners[i.cubicle()] = true;
         }
         for i in edges {
-            seen_edges[i.cubicle() as usize] = true;
+            seen_edges[i.cubicle()] = true;
         }
 
         if seen_corners.into_iter().any(|x| x == false)
@@ -73,7 +74,7 @@ impl CubeState {
             use CornerCubicle::*;
             use CornerOrientation::O0;
             use CornerState as S;
-            [
+            CornerCubicleIndexed::new([
                 S::new(C0, O0),
                 S::new(C1, O0),
                 S::new(C2, O0),
@@ -82,13 +83,13 @@ impl CubeState {
                 S::new(C5, O0),
                 S::new(C6, O0),
                 S::new(C7, O0),
-            ]
+            ])
         },
         edges: {
             use EdgeCubicle::*;
             use EdgeOrientation::O0;
             use EdgeState as S;
-            [
+            EdgeCubicleIndexed::new([
                 S::new(C0, O0),
                 S::new(C1, O0),
                 S::new(C2, O0),
@@ -101,18 +102,36 @@ impl CubeState {
                 S::new(C9, O0),
                 S::new(C10, O0),
                 S::new(C11, O0),
-            ]
+            ])
         },
     };
 
     /// Get the state of the corner whose home is the given `cubicle`
     pub(crate) fn get_corner(&self, cubicle: CornerCubicle) -> CornerState {
-        self.corners[cubicle as usize]
+        self.corners[cubicle]
     }
 
     /// Get the state of the edge whose home is the given `cubicle`
     pub(crate) fn get_edge(&self, cubicle: EdgeCubicle) -> EdgeState {
-        self.edges[cubicle as usize]
+        self.edges[cubicle]
+    }
+
+    pub fn inverse(&self) -> Self {
+        let mut ret = Self::SOLVED;
+
+        for (current, home) in self.corners.into_iter().zip(CornerCubicle::all()) {
+            // The cubie that lives in `home` now has state `current`.
+            // So, the inverse has to put `current` back at `home`
+            ret.corners[current.cubicle()] =
+                CornerState::new(home, current.orientation().inverse());
+        }
+        for (current, home) in self.edges.into_iter().zip(EdgeCubicle::all()) {
+            // The cubie that lives in `home` now has state `current`.
+            // So, the inverse has to put `current` back at `home`
+            ret.edges[current.cubicle()] = EdgeState::new(home, current.orientation().inverse());
+        }
+
+        ret
     }
 }
 
@@ -122,4 +141,14 @@ pub enum CubeStateConstructionError {
     EmptyCubicles,
     #[error("Attempted to create a CubeState for an impossible state")]
     ImpossibleState,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inverses() {
+        assert_eq!(CubeState::SOLVED, CubeState::SOLVED.inverse());
+    }
 }
