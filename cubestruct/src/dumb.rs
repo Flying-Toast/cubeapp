@@ -1,9 +1,11 @@
-use crate::cubestate::CubeState;
-use crate::cubiestate::{CornerCubicle, CornerOrientation, EdgeCubicle, EdgeOrientation};
+use crate::cubestate::{CubeState, CubeStateConstructionError};
+use crate::cubiestate::{
+    CornerCubicle, CornerOrientation, CornerState, EdgeCubicle, EdgeOrientation, EdgeState,
+};
 
 /// A simpler cube representation than [`CubeState`]. A `DumbCube` is just an array of
 /// 6 faces where each face is an array of 9 colors.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct DumbCube {
     /// See [`Self::get_face()`] for the layout of this array
     faces: [[Color; 9]; 6],
@@ -17,11 +19,104 @@ impl DumbCube {
         }
     }
 
-    pub fn to_cubestate(&self) -> CubeState {
-        todo!()
+    pub fn to_cubestate(&self) -> Result<CubeState, DumbConversionError> {
+        let corner_map = {
+            use Color::*;
+            use CornerCubicle::*;
+            [
+                (C0, [White, Orange, Blue], [0, 0, 2]),
+                (C1, [White, Blue, Red], [2, 0, 2]),
+                (C2, [White, Green, Orange], [6, 0, 2]),
+                (C3, [White, Red, Green], [8, 0, 2]),
+                (C4, [Yellow, Blue, Orange], [6, 8, 6]),
+                (C5, [Yellow, Red, Blue], [8, 8, 6]),
+                (C6, [Yellow, Orange, Green], [0, 8, 6]),
+                (C7, [Yellow, Green, Red], [2, 8, 6]),
+            ]
+        };
+
+        // another yucky hack to avoid MaybeUninit (because logic error is easier to debug than UB)
+        let mut corners = [CornerState::new(CornerCubicle::C0, CornerOrientation::O0); 8];
+        let mut edges = [EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0); 12];
+
+        for (home, home_colors, _) in corner_map {
+            'orientations: for orientation in CornerOrientation::all() {
+                // list of `(cubicle, oriented colors of the cubie in that cubicle)`
+                let colored_corner_cubies =
+                    corner_map.into_iter().map(|(cubicle, faces, indices)| {
+                        let [fa, fb, fc] = faces;
+                        let [ia, ib, ic] = indices;
+                        (
+                            cubicle,
+                            [
+                                self.get_face(fa)[ia],
+                                self.get_face(fb)[ib],
+                                self.get_face(fc)[ic],
+                            ],
+                        )
+                    });
+
+                for (cubicle, colors_in_cubicle) in colored_corner_cubies {
+                    if corner_shift(colors_in_cubicle, orientation) == home_colors {
+                        corners[home as usize] = CornerState::new(cubicle, orientation);
+                        break 'orientations;
+                    }
+                }
+                // The `home` cubie doesn't exist in the DumbCube
+                return Err(DumbConversionError::CornerCubieNotFound { cubicle: home });
+            }
+        }
+
+        let edge_map = {
+            use Color::*;
+            use EdgeCubicle::*;
+            [
+                (C0, [White, Blue], [1, 1]),
+                (C1, [White, Orange], [3, 1]),
+                (C2, [White, Red], [5, 1]),
+                (C3, [White, Green], [7, 1]),
+                (C4, [Blue, Orange], [5, 3]),
+                (C5, [Blue, Red], [3, 5]),
+                (C6, [Green, Orange], [3, 5]),
+                (C7, [Green, Red], [5, 3]),
+                (C8, [Yellow, Blue], [7, 7]),
+                (C9, [Yellow, Orange], [3, 7]),
+                (C10, [Yellow, Red], [5, 7]),
+                (C11, [Yellow, Green], [1, 7]),
+            ]
+        };
+
+        for (home, home_colors, _) in edge_map {
+            'orientations: for orientation in EdgeOrientation::all() {
+                // list of `(cubicle, oriented colors of the cubie in that cubicle)`
+                let colored_edge_cubies = edge_map.into_iter().map(|(cubicle, faces, indices)| {
+                    let [fa, fb] = faces;
+                    let [ia, ib] = indices;
+                    (cubicle, [self.get_face(fa)[ia], self.get_face(fb)[ib]])
+                });
+
+                for (cubicle, colors_in_cubicle) in colored_edge_cubies {
+                    if edge_shift(colors_in_cubicle, orientation) == home_colors {
+                        edges[home as usize] = EdgeState::new(cubicle, orientation);
+                        break 'orientations;
+                    }
+                }
+                // The `home` cubie doesn't exist in the DumbCube
+                return Err(DumbConversionError::EdgeCubieNotFound { cubicle: home });
+            }
+        }
+
+        // list of `(cubicle, oriented colors of the cubie in that cubicle)`
+        let colored_edge_cubies = edge_map.into_iter().map(|(cubicle, faces, indices)| {
+            let [fa, fb] = faces;
+            let [ia, ib] = indices;
+            (cubicle, [self.get_face(fa)[ia], self.get_face(fb)[ib]])
+        });
+
+        Ok(CubeState::try_new(corners, edges)?)
     }
 
-    pub fn from_cubestate(state: &CubeState) -> Self {
+    pub(crate) fn from_cubestate(state: &CubeState) -> Self {
         let corner_cubie_colors = {
             use Color::*;
             use CornerCubicle::*;
@@ -39,14 +134,6 @@ impl DumbCube {
                 (C7, [Yellow, Green, Red]),
             ]
         };
-        // O1: shift colors right
-        const fn corner_o1_shift([a, b, c]: [Color; 3]) -> [Color; 3] {
-            [c, a, b]
-        }
-        // O2: shift colors left
-        const fn corner_o2_shift([a, b, c]: [Color; 3]) -> [Color; 3] {
-            [b, c, a]
-        }
 
         let corner_face_index_map = [
             // `corner_cubie_colors` tells us that the cubie who lives at C0 has colors [W, O, B];
@@ -112,11 +199,7 @@ impl DumbCube {
             // `colors` are the colors of that cubie.
             // `cornerstate.cubicle()` is the current cubicle that cubie is in
             let cornerstate = state.get_corner(home_cubicle);
-            let oriented_colors = match cornerstate.orientation() {
-                CornerOrientation::O0 => colors,
-                CornerOrientation::O1 => corner_o1_shift(colors),
-                CornerOrientation::O2 => corner_o2_shift(colors),
-            };
+            let oriented_colors = corner_shift(colors, cornerstate.orientation());
             let cidx = cornerstate.cubicle() as usize;
             let face_map = corner_face_index_map[cidx];
             let cubicle_colors = corner_cubie_colors[cidx].1;
@@ -125,16 +208,9 @@ impl DumbCube {
             faces[cubicle_colors[2] as usize][face_map[2]] = oriented_colors[2];
         }
 
-        const fn edge_o1_shift([a, b]: [Color; 2]) -> [Color; 2] {
-            [b, a]
-        }
-
         for (home_cubicle, colors) in edge_cubie_colors {
             let edgestate = state.get_edge(home_cubicle);
-            let oriented_colors = match edgestate.orientation() {
-                EdgeOrientation::O0 => colors,
-                EdgeOrientation::O1 => edge_o1_shift(colors),
-            };
+            let oriented_colors = edge_shift(colors, edgestate.orientation());
             let cidx = edgestate.cubicle() as usize;
             let face_map = edge_face_index_map[cidx];
             let cubicle_colors = edge_cubie_colors[cidx].1;
@@ -177,6 +253,39 @@ impl DumbCube {
     /// ```
     pub fn get_face(&self, center: Color) -> [Color; 9] {
         self.faces[center as usize]
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum DumbConversionError {
+    #[error("The cubie that lives in {cubicle:?} was not found in the DumbCube")]
+    CornerCubieNotFound { cubicle: CornerCubicle },
+    #[error("The cubie that lives in {cubicle:?} was not found in the DumbCube")]
+    EdgeCubieNotFound { cubicle: EdgeCubicle },
+    #[error("CubeState::try_new() failed")]
+    CubeStateConstruction(CubeStateConstructionError),
+}
+
+impl From<CubeStateConstructionError> for DumbConversionError {
+    fn from(e: CubeStateConstructionError) -> Self {
+        Self::CubeStateConstruction(e)
+    }
+}
+
+/// Rotates a corner's colors from the given solved orientation into the orientation `orientation`.
+const fn corner_shift([a, b, c]: [Color; 3], orientation: CornerOrientation) -> [Color; 3] {
+    match orientation {
+        CornerOrientation::O0 => [a, b, c],
+        CornerOrientation::O1 => [c, a, b],
+        CornerOrientation::O2 => [b, c, a],
+    }
+}
+
+/// Flips an edge's colors from the given solved orientation into the orientation `orientation`.
+const fn edge_shift([a, b]: [Color; 2], orientation: EdgeOrientation) -> [Color; 2] {
+    match orientation {
+        EdgeOrientation::O0 => [a, b],
+        EdgeOrientation::O1 => [b, a],
     }
 }
 
@@ -225,6 +334,46 @@ impl Color {
             Self::Green,
             Self::Blue,
         ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dumb_conversions() {
+        assert_eq!(
+            CubeState::SOLVED.to_dumb().to_cubestate().unwrap(),
+            CubeState::SOLVED
+        );
+
+        let tperm_dumb = {
+            use Color::*;
+            DumbCube {
+                faces: [
+                    [
+                        Orange, Red, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
+                    ],
+                    [Blue, Orange, Green, Red, Red, Red, Red, Red, Red],
+                    [
+                        Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow,
+                    ],
+                    [
+                        White, White, White, White, White, White, White, White, White,
+                    ],
+                    [Green, Green, Red, Green, Green, Green, Green, Green, Green],
+                    [Red, Blue, Blue, Blue, Blue, Blue, Blue, Blue, Blue],
+                ],
+            }
+        };
+        let tperm_cubestate = tperm_dumb.to_cubestate().unwrap();
+
+        assert_eq!(tperm_dumb, tperm_cubestate.to_dumb());
+        assert_eq!(
+            tperm_cubestate,
+            tperm_cubestate.to_dumb().to_cubestate().unwrap()
+        );
     }
 }
 

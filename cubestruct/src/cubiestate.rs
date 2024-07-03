@@ -33,8 +33,7 @@ pub enum CornerOrientation {
 }
 
 impl CornerOrientation {
-    #[cfg(test)]
-    fn all() -> impl Iterator<Item = Self> {
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
         use CornerOrientation::*;
         [O0, O1, O2].into_iter()
     }
@@ -102,8 +101,7 @@ pub enum EdgeOrientation {
 }
 
 impl EdgeOrientation {
-    #[cfg(test)]
-    fn all() -> impl Iterator<Item = Self> {
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
         use EdgeOrientation::*;
         [O0, O1].into_iter()
     }

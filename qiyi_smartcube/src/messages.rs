@@ -1,7 +1,10 @@
 use crate::crc::crc16;
 use anyhow::{anyhow, bail, Result};
 use btleplug::api::BDAddr;
-use cubestruct::{dumb::Color, CubeState};
+use cubestruct::{
+    dumb::{Color, DumbCube},
+    CubeState,
+};
 use std::fmt;
 use thiserror::Error;
 
@@ -264,15 +267,28 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
 }
 
 fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
-    CubeState {
-        facelets: raw
-            .iter()
-            .flat_map(|&x| [x & 0xf, (x & 0xF0) >> 4])
-            .map(|x| color_from_u8(x).unwrap())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap(),
+    let color_order = [
+        Color::White,
+        Color::Red,
+        Color::Green,
+        Color::Yellow,
+        Color::Orange,
+        Color::Blue,
+    ];
+    let mut builder = DumbCube::builder();
+
+    let mut facelet_colors = raw
+        .iter()
+        .flat_map(|&x| [x & 0xf, (x & 0xF0) >> 4])
+        .map(|x| color_from_u8(x).unwrap());
+
+    for face_color in color_order {
+        for i in 0..9 {
+            builder.set(face_color, i, facelet_colors.next().unwrap());
+        }
     }
+
+    builder.build().unwrap().to_cubestate().unwrap()
 }
 
 fn color_from_u8(x: u8) -> Option<Color> {

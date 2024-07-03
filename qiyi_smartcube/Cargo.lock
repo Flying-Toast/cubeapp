@@ -299,6 +299,9 @@ dependencies = [
 [[package]]
 name = "cubestruct"
 version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "dashmap"
