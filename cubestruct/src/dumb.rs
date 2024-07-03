@@ -106,13 +106,6 @@ impl DumbCube {
             }
         }
 
-        // list of `(cubicle, oriented colors of the cubie in that cubicle)`
-        let colored_edge_cubies = edge_map.into_iter().map(|(cubicle, faces, indices)| {
-            let [fa, fb] = faces;
-            let [ia, ib] = indices;
-            (cubicle, [self.get_face(fa)[ia], self.get_face(fb)[ib]])
-        });
-
         Ok(CubeState::try_new(corners, edges)?)
     }
 

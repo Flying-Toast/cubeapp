@@ -1,3 +1,4 @@
+use std::fmt;
 use std::mem::transmute;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -40,8 +41,14 @@ impl CornerOrientation {
 }
 
 /// Permutation + orientation of a single corner cubie
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct CornerState(u8);
+
+impl fmt::Debug for CornerState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CornerState({:?}, {:?})", self.cubicle(), self.orientation())
+    }
+}
 
 impl CornerState {
     #[must_use]
@@ -108,8 +115,14 @@ impl EdgeOrientation {
 }
 
 /// Permutation + orientation of a single edge cubie
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct EdgeState(u8);
+
+impl fmt::Debug for EdgeState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EdgeState({:?}, {:?})", self.cubicle(), self.orientation())
+    }
+}
 
 impl EdgeState {
     #[must_use]
