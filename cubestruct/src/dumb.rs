@@ -10,8 +10,19 @@ pub struct DumbCube {
 }
 
 impl DumbCube {
+    pub fn builder() -> DumbCubeBuilder {
+        DumbCubeBuilder {
+            initialized: [[false; 9]; 6],
+            faces: [[Color::Blue; 9]; 6],
+        }
+    }
+
+    pub fn to_cubestate(&self) -> CubeState {
+        todo!()
+    }
+
     pub fn from_cubestate(state: &CubeState) -> Self {
-        let corner_map = {
+        let corner_cubie_colors = {
             use Color::*;
             use CornerCubicle::*;
             // (homecubicle, [clockwise_colors])
@@ -37,10 +48,10 @@ impl DumbCube {
             [b, c, a]
         }
 
-        let corner_face_map = [
-            // `corner_map` tells us that the cubie who lives at C0 has colors [W, O, B];
+        let corner_face_index_map = [
+            // `corner_cubie_colors` tells us that the cubie who lives at C0 has colors [W, O, B];
             // elements in the [0, 0, 2] array here correspond to the order of colors in that [W, O, B] array.
-            // here, corner_face_map[C0] = [0, 0, 2] tells us that the C0 cubie has its white facelet
+            // here, corner_face_index_map[C0] = [0, 0, 2] tells us that the C0 cubie has its white facelet
             // at index 0 of the white face (see `get_face()` for these indices), its orange facelet
             // at index 0 of the orange face, and its blue facelet at index 2 of the blue face.
             [0, 0, 2], // C0
@@ -53,7 +64,7 @@ impl DumbCube {
             [2, 8, 6], // C7
         ];
 
-        let edge_map = {
+        let edge_cubie_colors = {
             use Color::*;
             use EdgeCubicle::*;
             // (homeplace, [X]) where X colors are ordered to start with the UD/FB face
@@ -75,10 +86,10 @@ impl DumbCube {
 
         // example:
         // (C2, [White, Red]):
-        // edge_face_map[C2 as usize] = [5, 1]
+        // edge_face_index_map[C2 as usize] = [5, 1]
         // => the white facelet of the C2 cubie goes in index 5 of the white face
         // => the red facelet of the C2 cubie goes in index 1 of the red face
-        let edge_face_map = [
+        let edge_face_index_map = [
             [1, 1], // C0
             [3, 1], // C1
             [5, 1], // C2
@@ -96,7 +107,7 @@ impl DumbCube {
         // yucky way to avoid using MaybeUninit
         let mut faces = [[Color::Blue; 9]; 6];
 
-        for (home_cubicle, colors) in corner_map {
+        for (home_cubicle, colors) in corner_cubie_colors {
             // `cornerstate` is the cubie that normally lives in `home_cubicle`.
             // `colors` are the colors of that cubie.
             // `cornerstate.cubicle()` is the current cubicle that cubie is in
@@ -107,8 +118,8 @@ impl DumbCube {
                 CornerOrientation::O2 => corner_o2_shift(colors),
             };
             let cidx = cornerstate.cubicle() as usize;
-            let face_map = corner_face_map[cidx];
-            let cubicle_colors = corner_map[cidx].1;
+            let face_map = corner_face_index_map[cidx];
+            let cubicle_colors = corner_cubie_colors[cidx].1;
             faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
             faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
             faces[cubicle_colors[2] as usize][face_map[2]] = oriented_colors[2];
@@ -118,15 +129,15 @@ impl DumbCube {
             [b, a]
         }
 
-        for (home_cubicle, colors) in edge_map {
+        for (home_cubicle, colors) in edge_cubie_colors {
             let edgestate = state.get_edge(home_cubicle);
             let oriented_colors = match edgestate.orientation() {
                 EdgeOrientation::O0 => colors,
                 EdgeOrientation::O1 => edge_o1_shift(colors),
             };
             let cidx = edgestate.cubicle() as usize;
-            let face_map = edge_face_map[cidx];
-            let cubicle_colors = edge_map[cidx].1;
+            let face_map = edge_face_index_map[cidx];
+            let cubicle_colors = edge_cubie_colors[cidx].1;
             faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
             faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
         }
@@ -166,6 +177,31 @@ impl DumbCube {
     /// ```
     pub fn get_face(&self, center: Color) -> [Color; 9] {
         self.faces[center as usize]
+    }
+}
+
+#[derive(Debug)]
+pub struct DumbCubeBuilder {
+    initialized: [[bool; 9]; 6],
+    faces: [[Color; 9]; 6],
+}
+
+impl DumbCubeBuilder {
+    /// Returns `None` if not all faces were initialized
+    pub fn build(self) -> Option<DumbCube> {
+        if self.initialized.into_iter().flatten().any(|x| x == false) {
+            None
+        } else {
+            Some(DumbCube { faces: self.faces })
+        }
+    }
+
+    /// Set the facelet at the given index (on the given color's side) to the given color
+    #[inline]
+    pub fn set(&mut self, face: Color, index: usize, set_to: Color) {
+        assert!(index <= 8, "Provided index ({index}) out of bounds");
+        self.initialized[face as usize][index] = true;
+        self.faces[face as usize][index] = set_to;
     }
 }
 
