@@ -43,8 +43,8 @@ impl DumbCube {
         let mut edges =
             EdgeCubicleIndexed::new([EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
 
-        for (home, home_colors, _) in corner_map {
-            'orientations: for orientation in CornerOrientation::all() {
+        'outer: for (home, home_colors, _) in corner_map {
+            for orientation in CornerOrientation::all() {
                 // list of `(cubicle, oriented colors of the cubie in that cubicle)`
                 let colored_corner_cubies =
                     corner_map.into_iter().map(|(cubicle, faces, indices)| {
@@ -61,14 +61,14 @@ impl DumbCube {
                     });
 
                 for (cubicle, colors_in_cubicle) in colored_corner_cubies {
-                    if corner_shift(colors_in_cubicle, orientation) == home_colors {
+                    if corner_shift(home_colors, orientation) == colors_in_cubicle {
                         corners[home] = CornerState::new(cubicle, orientation);
-                        break 'orientations;
+                        continue 'outer;
                     }
                 }
-                // The `home` cubie doesn't exist in the DumbCube
-                return Err(DumbConversionError::CornerCubieNotFound { cubicle: home });
             }
+            // The `home` cubie doesn't exist in the DumbCube
+            return Err(DumbConversionError::CornerCubieNotFound { cubicle: home });
         }
 
         let edge_map = {
@@ -90,8 +90,8 @@ impl DumbCube {
             ])
         };
 
-        for (home, home_colors, _) in edge_map {
-            'orientations: for orientation in EdgeOrientation::all() {
+        'outer: for (home, home_colors, _) in edge_map {
+            for orientation in EdgeOrientation::all() {
                 // list of `(cubicle, oriented colors of the cubie in that cubicle)`
                 let colored_edge_cubies = edge_map.into_iter().map(|(cubicle, faces, indices)| {
                     let [fa, fb] = faces;
@@ -100,14 +100,14 @@ impl DumbCube {
                 });
 
                 for (cubicle, colors_in_cubicle) in colored_edge_cubies {
-                    if edge_shift(colors_in_cubicle, orientation) == home_colors {
+                    if edge_shift(home_colors, orientation) == colors_in_cubicle {
                         edges[home] = EdgeState::new(cubicle, orientation);
-                        break 'orientations;
+                        continue 'outer;
                     }
                 }
-                // The `home` cubie doesn't exist in the DumbCube
-                return Err(DumbConversionError::EdgeCubieNotFound { cubicle: home });
             }
+            // The `home` cubie doesn't exist in the DumbCube
+            return Err(DumbConversionError::EdgeCubieNotFound { cubicle: home });
         }
 
         Ok(CubeState::try_new(corners, edges)?)
@@ -343,33 +343,51 @@ mod tests {
             CubeState::SOLVED
         );
 
-        let tperm_dumb = {
-            use Color::*;
-            DumbCube {
-                faces: [
-                    [
-                        Orange, Red, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
-                    ],
-                    [Blue, Orange, Green, Red, Red, Red, Red, Red, Red],
-                    [
-                        Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow,
-                    ],
-                    [
-                        White, White, White, White, White, White, White, White, White,
-                    ],
-                    [Green, Green, Red, Green, Green, Green, Green, Green, Green],
-                    [Red, Blue, Blue, Blue, Blue, Blue, Blue, Blue, Blue],
-                ],
-            }
-        };
-        let tperm_cubestate = tperm_dumb.to_cubestate().unwrap();
-
-        assert_eq!(tperm_dumb, tperm_cubestate.to_dumb());
-        assert_eq!(
-            tperm_cubestate,
-            tperm_cubestate.to_dumb().to_cubestate().unwrap()
-        );
+        assert_eq!(TPERM, TPERM.to_cubestate().unwrap().to_dumb());
+        assert_eq!(RMOVE, RMOVE.to_cubestate().unwrap().to_dumb());
     }
+
+    const TPERM: DumbCube = {
+        use Color::*;
+        DumbCube {
+            faces: [
+                [
+                    Orange, Red, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
+                ],
+                [Blue, Orange, Green, Red, Red, Red, Red, Red, Red],
+                [
+                    Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow, Yellow,
+                ],
+                [
+                    White, White, White, White, White, White, White, White, White,
+                ],
+                [Green, Green, Red, Green, Green, Green, Green, Green, Green],
+                [Red, Blue, Blue, Blue, Blue, Blue, Blue, Blue, Blue],
+            ],
+        }
+    };
+
+    const RMOVE: DumbCube = {
+        use Color::*;
+        DumbCube {
+            faces: [
+                [
+                    Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
+                ],
+                [Red, Red, Red, Red, Red, Red, Red, Red, Red],
+                [
+                    Yellow, Yellow, Blue, Yellow, Yellow, Blue, Yellow, Yellow, Blue,
+                ],
+                [
+                    White, White, Green, White, White, Green, White, White, Green,
+                ],
+                [
+                    Green, Green, Yellow, Green, Green, Yellow, Green, Green, Yellow,
+                ],
+                [White, Blue, Blue, White, Blue, Blue, White, Blue, Blue],
+            ],
+        }
+    };
 }
 
 ////////////////////////////////
@@ -415,8 +433,7 @@ fn print_template_line(lnr: usize, facelet_colors: [Color; 9]) {
     }
 }
 
-fn println_render_cube(state: &CubeState) {
-    let render = DumbCube::from_cubestate(state);
+fn println_render_cube(render: &DumbCube) {
     for i in 0..7 {
         print!("{TMPLSPACE}");
         print_template_line(i, render.get_face(Color::White));
