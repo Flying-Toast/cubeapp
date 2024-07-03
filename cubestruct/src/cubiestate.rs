@@ -15,7 +15,7 @@ pub enum CornerCubicle {
 }
 
 impl CornerCubicle {
-    pub(crate) fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> impl Iterator<Item = Self> {
         use CornerCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7].into_iter()
     }
@@ -33,14 +33,14 @@ pub enum CornerOrientation {
 }
 
 impl CornerOrientation {
-    pub(crate) fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> impl Iterator<Item = Self> {
         use CornerOrientation::*;
         [O0, O1, O2].into_iter()
     }
 
     /// Returns the orientation that needs to be applied to this `self`
     /// orientation in order to return it to O0.
-    pub(crate) fn inverse(self) -> Self {
+    pub fn inverse(self) -> Self {
         match self {
             Self::O0 => Self::O0,
             Self::O1 => Self::O2,
@@ -105,7 +105,7 @@ pub enum EdgeCubicle {
 }
 
 impl EdgeCubicle {
-    pub(crate) fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> impl Iterator<Item = Self> {
         use EdgeCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11].into_iter()
     }
@@ -121,7 +121,7 @@ pub enum EdgeOrientation {
 }
 
 impl EdgeOrientation {
-    pub(crate) fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> impl Iterator<Item = Self> {
         use EdgeOrientation::*;
         [O0, O1].into_iter()
     }
@@ -133,7 +133,7 @@ impl EdgeOrientation {
     /// - Flipping a flipped edge flips it back to O0.
     /// - By not flipping an unflipped edge you stay at the unflipped
     /// orientation
-    pub(crate) fn inverse(self) -> Self {
+    pub fn inverse(self) -> Self {
         self
     }
 }
