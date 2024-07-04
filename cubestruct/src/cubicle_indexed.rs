@@ -16,6 +16,11 @@ impl<T> CornerCubicleIndexed<T> {
     pub fn swap(&mut self, a: CornerCubicle, b: CornerCubicle) {
         self.0.swap(a as usize, b as usize);
     }
+
+    pub fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
+        use rand::seq::SliceRandom;
+        self.0.shuffle(rng);
+    }
 }
 
 impl<T> Index<CornerCubicle> for CornerCubicleIndexed<T> {
@@ -51,6 +56,11 @@ impl<T> EdgeCubicleIndexed<T> {
 
     pub fn swap(&mut self, a: EdgeCubicle, b: EdgeCubicle) {
         self.0.swap(a as usize, b as usize);
+    }
+
+    pub fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
+        use rand::seq::SliceRandom;
+        self.0.shuffle(rng);
     }
 }
 

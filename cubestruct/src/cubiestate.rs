@@ -15,9 +15,9 @@ pub enum CornerCubicle {
 }
 
 impl CornerCubicle {
-    pub fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> [Self; 8] {
         use CornerCubicle::*;
-        [C0, C1, C2, C3, C4, C5, C6, C7].into_iter()
+        [C0, C1, C2, C3, C4, C5, C6, C7]
     }
 }
 
@@ -33,9 +33,9 @@ pub enum CornerOrientation {
 }
 
 impl CornerOrientation {
-    pub fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> [Self; 3] {
         use CornerOrientation::*;
-        [O0, O1, O2].into_iter()
+        [O0, O1, O2]
     }
 
     /// Returns the orientation that needs to be applied to this `self`
@@ -49,10 +49,14 @@ impl CornerOrientation {
     }
 
     /// Combines two orientations
-    pub fn mul(self, rhs: Self) -> Self {
+    pub fn add(self, rhs: Self) -> Self {
         let sum = self as u8 + rhs as u8;
         // SAFETY: Modulo 3 always produces a value 0..=2, which are all valid `CornerOrientation`s
         unsafe { transmute::<u8, CornerOrientation>(sum % 3) }
+    }
+
+    pub fn random<R: rand::Rng>(rng: &mut R) -> Self {
+        unsafe { transmute::<u8, CornerOrientation>(rng.gen_range(0..=2)) }
     }
 }
 
@@ -89,6 +93,10 @@ impl CornerState {
         // SAFETY: All ways of constructing a `CornerState` preserve this invariant
         unsafe { transmute::<u8, CornerOrientation>(self.0 >> 3) }
     }
+
+    pub fn set_orientation(&mut self, o: CornerOrientation) {
+        *self = Self::new(self.cubicle(), o);
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -109,9 +117,9 @@ pub enum EdgeCubicle {
 }
 
 impl EdgeCubicle {
-    pub fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> [Self; 12] {
         use EdgeCubicle::*;
-        [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11].into_iter()
+        [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11]
     }
 }
 
@@ -125,9 +133,9 @@ pub enum EdgeOrientation {
 }
 
 impl EdgeOrientation {
-    pub fn all() -> impl Iterator<Item = Self> {
+    pub fn all() -> [Self; 2] {
         use EdgeOrientation::*;
-        [O0, O1].into_iter()
+        [O0, O1]
     }
 
     /// Returns the orientation that needs to be applied to this `self`
@@ -142,9 +150,13 @@ impl EdgeOrientation {
     }
 
     /// Combines two orientations
-    pub fn mul(self, rhs: Self) -> Self {
-        // SAFETY: all ways of ORing {1,0} will yield 1 or 0
-        unsafe { transmute::<u8, EdgeOrientation>(self as u8 | rhs as u8) }
+    pub fn add(self, rhs: Self) -> Self {
+        let sum = self as u8 + rhs as u8;
+        unsafe { transmute::<u8, EdgeOrientation>(sum % 2) }
+    }
+
+    pub fn random<R: rand::Rng>(rng: &mut R) -> Self {
+        unsafe { transmute::<u8, EdgeOrientation>(rng.gen_range(0..=1)) }
     }
 }
 
@@ -180,6 +192,10 @@ impl EdgeState {
     pub const fn orientation(self) -> EdgeOrientation {
         // SAFETY: All 1-bit numbers are a valid EdgeOrientation
         unsafe { transmute::<u8, EdgeOrientation>(self.0 & 1) }
+    }
+
+    pub fn set_orientation(&mut self, o: EdgeOrientation) {
+        *self = Self::new(self.cubicle(), o);
     }
 }
 

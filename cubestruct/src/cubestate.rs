@@ -1,6 +1,7 @@
 use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
 use crate::cubiestate::*;
 use crate::dumb::DumbCube;
+use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
 
 /// The Rubik's Cube group, *G*.
 ///
@@ -64,30 +65,55 @@ impl CubeState {
         }
     }
 
-    fn cornerperm_2cycles(&self) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
-        crate::iter_2cycles::CornerPerm2Cycles::new(self.corners)
+    pub fn random_possible() -> Self {
+        use rand::seq::SliceRandom;
+        let Self {
+            mut corners,
+            mut edges,
+        } = Self::SOLVED;
+        let mut rng = rand::thread_rng();
+
+        let mut total_corner_ori = CornerOrientation::O0;
+        for cubicle in CornerCubicle::all().into_iter().skip(1) {
+            let o = CornerOrientation::random(&mut rng);
+            total_corner_ori = total_corner_ori.add(o);
+            corners[cubicle].set_orientation(o);
+        }
+        corners[CornerCubicle::C0].set_orientation(total_corner_ori.inverse());
+
+        let mut total_edge_ori = EdgeOrientation::O0;
+        for cubicle in EdgeCubicle::all().into_iter().skip(1) {
+            let o = EdgeOrientation::random(&mut rng);
+            total_edge_ori = total_edge_ori.add(o);
+            edges[cubicle].set_orientation(o);
+        }
+        edges[EdgeCubicle::C0].set_orientation(total_edge_ori.inverse());
+
+        corners.shuffle(&mut rng);
+        edges.shuffle(&mut rng);
+        if corner_2cycles(corners).count() & 1 != edge_2cycles(edges).count() & 1 {
+            edges.swap(EdgeCubicle::C0, EdgeCubicle::C1);
+        }
+
+        Self { corners, edges }
     }
 
-    fn edgeperm_2cycles(&self) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
-        crate::iter_2cycles::EdgePerm2Cycles::new(self.edges)
-    }
-
-    fn is_possible_state(&self) -> bool {
+    pub fn is_possible_state(&self) -> bool {
         let total_edge_orientation = self
             .edges
             .into_iter()
             .map(|x| x.orientation())
-            .reduce(EdgeOrientation::mul)
+            .reduce(EdgeOrientation::add)
             .unwrap();
         let total_corner_orientation = self
             .corners
             .into_iter()
             .map(|x| x.orientation())
-            .reduce(CornerOrientation::mul)
+            .reduce(CornerOrientation::add)
             .unwrap();
 
-        let corners_odd = self.cornerperm_2cycles().count() & 1 == 1;
-        let edges_odd = self.edgeperm_2cycles().count() & 1 == 1;
+        let corners_odd = corner_2cycles(self.corners).count() & 1 == 1;
+        let edges_odd = edge_2cycles(self.edges).count() & 1 == 1;
 
         total_edge_orientation == EdgeOrientation::O0
             && total_corner_orientation == CornerOrientation::O0
@@ -180,7 +206,7 @@ impl CubeState {
             let rhs_state = rhs.corners[self_state.cubicle()];
             ret.corners[home] = CornerState::new(
                 rhs_state.cubicle(),
-                self_state.orientation().mul(rhs_state.orientation()),
+                self_state.orientation().add(rhs_state.orientation()),
             );
         }
 
@@ -190,7 +216,7 @@ impl CubeState {
             let rhs_state = rhs.edges[self_state.cubicle()];
             ret.edges[home] = EdgeState::new(
                 rhs_state.cubicle(),
-                self_state.orientation().mul(rhs_state.orientation()),
+                self_state.orientation().add(rhs_state.orientation()),
             );
         }
 
@@ -215,20 +241,26 @@ mod tests {
         assert!(RMOVE.is_possible_state());
         let one_edge_flipped = {
             let mut ret = CubeState::SOLVED;
-            ret.edges[EdgeCubicle::C0] = EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O1);
+            ret.edges[EdgeCubicle::C0].set_orientation(EdgeOrientation::O1);
             ret
         };
         assert!(!one_edge_flipped.is_possible_state());
 
         let two_corners_swapped = {
             let mut ret = CubeState::SOLVED;
-            let c0 = ret.corners[CornerCubicle::C0];
-            ret.corners[CornerCubicle::C0] = ret.corners[CornerCubicle::C1];
-            ret.corners[CornerCubicle::C1] = c0;
+            ret.corners.swap(CornerCubicle::C0, CornerCubicle::C1);
             ret
         };
 
         assert!(!two_corners_swapped.is_possible_state());
+    }
+
+    #[test]
+    fn random_possible_states_are_possible() {
+        for _ in 0..1000 {
+            let state = CubeState::random_possible();
+            assert!(state.is_possible_state(), "{state:?}");
+        }
     }
 
     #[test]

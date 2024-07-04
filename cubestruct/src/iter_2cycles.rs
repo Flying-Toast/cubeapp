@@ -1,16 +1,14 @@
 // TODO: DRY this stuff
 use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
-use crate::cubiestate::{
-    CornerCubicle, CornerOrientation, CornerState, EdgeCubicle, EdgeOrientation, EdgeState,
-};
+use crate::cubiestate::{CornerCubicle, CornerState, EdgeCubicle, EdgeState};
 
 #[derive(Debug)]
-pub struct CornerPerm2Cycles {
+struct CornerPerm2Cycles {
     corners: CornerCubicleIndexed<CornerState>,
 }
 
 impl CornerPerm2Cycles {
-    pub fn new(corners: CornerCubicleIndexed<CornerState>) -> Self {
+    fn new(corners: CornerCubicleIndexed<CornerState>) -> Self {
         Self { corners }
     }
 }
@@ -40,13 +38,19 @@ impl Iterator for CornerPerm2Cycles {
     }
 }
 
+pub fn corner_2cycles(
+    corners: CornerCubicleIndexed<CornerState>,
+) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
+    CornerPerm2Cycles::new(corners)
+}
+
 #[derive(Debug)]
-pub struct EdgePerm2Cycles {
+struct EdgePerm2Cycles {
     edges: EdgeCubicleIndexed<EdgeState>,
 }
 
 impl EdgePerm2Cycles {
-    pub fn new(edges: EdgeCubicleIndexed<EdgeState>) -> Self {
+    fn new(edges: EdgeCubicleIndexed<EdgeState>) -> Self {
         Self { edges }
     }
 }
@@ -72,9 +76,16 @@ impl Iterator for EdgePerm2Cycles {
     }
 }
 
+pub fn edge_2cycles(
+    edges: EdgeCubicleIndexed<EdgeState>,
+) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
+    EdgePerm2Cycles::new(edges)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cubiestate::{CornerOrientation, EdgeOrientation};
 
     #[test]
     fn corner_cycle_decomposition() {
