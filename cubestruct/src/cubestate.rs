@@ -1,5 +1,4 @@
-use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
-use crate::cubiestate::*;
+use crate::cubie::*;
 use crate::dumb::DumbCube;
 use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
 
@@ -34,20 +33,20 @@ use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
 pub struct CubeState {
     /// `corners[i]` is the state of the corner whose home is cubicle `i`.
     /// e.g. `corners[C4].cubicle()` returns the cubicle in which the cubie that lives at C4 currently is located.
-    corners: CornerCubicleIndexed<CornerState>,
+    corners: Corners,
     /// `edges[i]` is the state of the edge whose home is cubicle `i`
     /// e.g. `edges[C0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
-    edges: EdgeCubicleIndexed<EdgeState>,
+    edges: Edges,
 }
 
 impl CubeState {
     /// Returns `None` if the given cubie arrays are invalid (i.e. the put multiple cubies in the same cubicle).
     pub(crate) fn try_new(
-        corners: CornerCubicleIndexed<CornerState>,
-        edges: EdgeCubicleIndexed<EdgeState>,
+        corners: Corners,
+        edges: Edges,
     ) -> Result<Self, CubeStateConstructionError> {
-        let mut seen_corners = CornerCubicleIndexed::new([false; 8]);
-        let mut seen_edges = EdgeCubicleIndexed::new([false; 12]);
+        let mut seen_corners = CubicleArray::new([false; 8]);
+        let mut seen_edges = CubicleArray::new([false; 12]);
 
         for i in corners {
             seen_corners[i.cubicle()] = true;
@@ -66,7 +65,6 @@ impl CubeState {
     }
 
     pub fn random_possible() -> Self {
-        use rand::seq::SliceRandom;
         let Self {
             mut corners,
             mut edges,
@@ -130,7 +128,7 @@ impl CubeState {
             use CornerCubicle::*;
             use CornerOrientation::O0;
             use CornerState as S;
-            CornerCubicleIndexed::new([
+            CubicleArray::new([
                 S::new(C0, O0),
                 S::new(C1, O0),
                 S::new(C2, O0),
@@ -145,7 +143,7 @@ impl CubeState {
             use EdgeCubicle::*;
             use EdgeOrientation::O0;
             use EdgeState as S;
-            EdgeCubicleIndexed::new([
+            CubicleArray::new([
                 S::new(C0, O0),
                 S::new(C1, O0),
                 S::new(C2, O0),
@@ -267,6 +265,8 @@ mod tests {
     fn group_ops() {
         assert_eq!(CubeState::SOLVED, CubeState::SOLVED.inverse());
         assert_eq!(CubeState::SOLVED.mul(&CubeState::SOLVED), CubeState::SOLVED);
+        assert_eq!(RMOVE.mul(&CubeState::SOLVED), RMOVE);
+        assert_eq!(CubeState::SOLVED.mul(&TPERM), TPERM);
 
         assert_eq!(TPERM.inverse(), TPERM);
         assert_eq!(TPERM.mul(&TPERM.inverse()), CubeState::SOLVED);
@@ -279,13 +279,21 @@ mod tests {
         assert_ne!(RMOVE.mul(&RMOVE).mul(&RMOVE), RMOVE);
         assert_ne!(RMOVE.mul(&RMOVE).mul(&RMOVE), CubeState::SOLVED);
         assert_eq!(RMOVE.mul(&RMOVE).mul(&RMOVE).mul(&RMOVE), CubeState::SOLVED);
+
+        assert_eq!(
+            CubeState::SOLVED,
+            TPERM
+                .mul(&RMOVE)
+                .mul(&RMOVE.inverse())
+                .mul(&TPERM.inverse())
+        );
     }
 
     const TPERM: CubeState = CubeState {
         corners: {
             use CornerCubicle::*;
             use CornerOrientation::O0;
-            CornerCubicleIndexed::new([
+            CubicleArray::new([
                 CornerState::new(C0, O0),
                 CornerState::new(C3, O0),
                 CornerState::new(C2, O0),
@@ -299,7 +307,7 @@ mod tests {
         edges: {
             use EdgeCubicle::*;
             use EdgeOrientation::O0;
-            EdgeCubicleIndexed::new([
+            CubicleArray::new([
                 EdgeState::new(C0, O0),
                 EdgeState::new(C2, O0),
                 EdgeState::new(C1, O0),
@@ -317,7 +325,7 @@ mod tests {
     };
 
     const RMOVE: CubeState = CubeState {
-        corners: CornerCubicleIndexed::new([
+        corners: CubicleArray::new([
             CornerState::new(CornerCubicle::C0, CornerOrientation::O0),
             CornerState::new(CornerCubicle::C5, CornerOrientation::O2),
             CornerState::new(CornerCubicle::C2, CornerOrientation::O0),
@@ -327,7 +335,7 @@ mod tests {
             CornerState::new(CornerCubicle::C6, CornerOrientation::O0),
             CornerState::new(CornerCubicle::C3, CornerOrientation::O2),
         ]),
-        edges: EdgeCubicleIndexed::new([
+        edges: CubicleArray::new([
             EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0),
             EdgeState::new(EdgeCubicle::C1, EdgeOrientation::O0),
             EdgeState::new(EdgeCubicle::C5, EdgeOrientation::O0),

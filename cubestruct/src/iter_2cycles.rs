@@ -1,14 +1,12 @@
-// TODO: DRY this stuff
-use crate::cubicle_indexed::{CornerCubicleIndexed, EdgeCubicleIndexed};
-use crate::cubiestate::{CornerCubicle, CornerState, EdgeCubicle, EdgeState};
+use crate::cubie::*;
 
 #[derive(Debug)]
 struct CornerPerm2Cycles {
-    corners: CornerCubicleIndexed<CornerState>,
+    corners: Corners,
 }
 
 impl CornerPerm2Cycles {
-    fn new(corners: CornerCubicleIndexed<CornerState>) -> Self {
+    fn new(corners: Corners) -> Self {
         Self { corners }
     }
 }
@@ -38,19 +36,17 @@ impl Iterator for CornerPerm2Cycles {
     }
 }
 
-pub fn corner_2cycles(
-    corners: CornerCubicleIndexed<CornerState>,
-) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
+pub fn corner_2cycles(corners: Corners) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
     CornerPerm2Cycles::new(corners)
 }
 
 #[derive(Debug)]
 struct EdgePerm2Cycles {
-    edges: EdgeCubicleIndexed<EdgeState>,
+    edges: Edges,
 }
 
 impl EdgePerm2Cycles {
-    fn new(edges: EdgeCubicleIndexed<EdgeState>) -> Self {
+    fn new(edges: Edges) -> Self {
         Self { edges }
     }
 }
@@ -76,22 +72,20 @@ impl Iterator for EdgePerm2Cycles {
     }
 }
 
-pub fn edge_2cycles(
-    edges: EdgeCubicleIndexed<EdgeState>,
-) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
+pub fn edge_2cycles(edges: Edges) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
     EdgePerm2Cycles::new(edges)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cubiestate::{CornerOrientation, EdgeOrientation};
+    use crate::cubie::{CornerOrientation, EdgeOrientation};
 
     #[test]
     fn corner_cycle_decomposition() {
         use CornerCubicle::*;
         assert_eq!(
-            CornerPerm2Cycles::new(CornerCubicleIndexed::new([
+            CornerPerm2Cycles::new(CubicleArray::new([
                 CornerState::new(C2, CornerOrientation::O0),
                 CornerState::new(C5, CornerOrientation::O0),
                 CornerState::new(C6, CornerOrientation::O0),
@@ -105,7 +99,7 @@ mod tests {
             vec![(C2, C0), (C6, C0), (C3, C0), (C5, C1), (C4, C1), (C7, C1)]
         );
         assert_eq!(
-            CornerPerm2Cycles::new(CornerCubicleIndexed::new([
+            CornerPerm2Cycles::new(CubicleArray::new([
                 CornerState::new(C0, CornerOrientation::O0),
                 CornerState::new(C1, CornerOrientation::O0),
                 CornerState::new(C2, CornerOrientation::O0),
@@ -124,7 +118,7 @@ mod tests {
     fn edge_cycle_decomposition() {
         use EdgeCubicle::*;
         assert_eq!(
-            EdgePerm2Cycles::new(EdgeCubicleIndexed::new([
+            EdgePerm2Cycles::new(CubicleArray::new([
                 EdgeState::new(C8, EdgeOrientation::O0),
                 EdgeState::new(C6, EdgeOrientation::O0),
                 EdgeState::new(C1, EdgeOrientation::O0),
@@ -153,7 +147,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            EdgePerm2Cycles::new(EdgeCubicleIndexed::new([
+            EdgePerm2Cycles::new(CubicleArray::new([
                 EdgeState::new(C0, EdgeOrientation::O0),
                 EdgeState::new(C1, EdgeOrientation::O0),
                 EdgeState::new(C2, EdgeOrientation::O0),

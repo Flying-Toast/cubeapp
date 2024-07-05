@@ -1,6 +1,5 @@
 mod cubestate;
-mod cubicle_indexed;
-mod cubiestate;
+mod cubie;
 mod iter_2cycles;
 
 pub mod dumb;

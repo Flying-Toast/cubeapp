@@ -1,5 +1,69 @@
 use std::fmt;
 use std::mem::transmute;
+use std::ops::{Index, IndexMut};
+
+pub type Corners = CubicleArray<CornerState, 8>;
+pub type Edges = CubicleArray<EdgeState, 12>;
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct CubicleArray<T, const N: usize>([T; N]);
+
+impl<T, const N: usize> CubicleArray<T, N> {
+    pub const fn new(items: [T; N]) -> Self {
+        Self(items)
+    }
+
+    pub fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
+        use rand::seq::SliceRandom;
+        self.0.shuffle(rng);
+    }
+}
+
+impl<T> CubicleArray<T, 8> {
+    pub fn swap(&mut self, a: CornerCubicle, b: CornerCubicle) {
+        self.0.swap(a as usize, b as usize);
+    }
+}
+
+impl<T> CubicleArray<T, 12> {
+    pub fn swap(&mut self, a: EdgeCubicle, b: EdgeCubicle) {
+        self.0.swap(a as usize, b as usize);
+    }
+}
+
+impl<T, const N: usize> IntoIterator for CubicleArray<T, N> {
+    type IntoIter = <[T; N] as IntoIterator>::IntoIter;
+    type Item = T;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T> Index<CornerCubicle> for CubicleArray<T, 8> {
+    type Output = T;
+    fn index(&self, index: CornerCubicle) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl<T> IndexMut<CornerCubicle> for CubicleArray<T, 8> {
+    fn index_mut(&mut self, index: CornerCubicle) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
+impl<T> Index<EdgeCubicle> for CubicleArray<T, 12> {
+    type Output = T;
+    fn index(&self, index: EdgeCubicle) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl<T> IndexMut<EdgeCubicle> for CubicleArray<T, 12> {
+    fn index_mut(&mut self, index: EdgeCubicle) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
