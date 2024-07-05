@@ -29,6 +29,7 @@ Adw.ApplicationWindow window {
 				[end]
 				ToggleButton sidebar_toggle {
 					icon-name: "sidebar-show-right-symbolic";
+					visible: bind stats_pane.collapsed;
 					active: true;
 				}
 			}
