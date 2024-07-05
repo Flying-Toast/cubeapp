@@ -86,28 +86,28 @@ mod tests {
         use CornerCubicle::*;
         assert_eq!(
             CornerPerm2Cycles::new(CubicleArray::new([
-                CornerState::new(C2, CornerOrientation::O0),
-                CornerState::new(C5, CornerOrientation::O0),
-                CornerState::new(C6, CornerOrientation::O0),
-                CornerState::new(C0, CornerOrientation::O0),
-                CornerState::new(C7, CornerOrientation::O0),
-                CornerState::new(C4, CornerOrientation::O0),
-                CornerState::new(C3, CornerOrientation::O0),
-                CornerState::new(C1, CornerOrientation::O0),
+                CornerCubie::new(C2, CornerOrientation::O0),
+                CornerCubie::new(C5, CornerOrientation::O0),
+                CornerCubie::new(C6, CornerOrientation::O0),
+                CornerCubie::new(C0, CornerOrientation::O0),
+                CornerCubie::new(C7, CornerOrientation::O0),
+                CornerCubie::new(C4, CornerOrientation::O0),
+                CornerCubie::new(C3, CornerOrientation::O0),
+                CornerCubie::new(C1, CornerOrientation::O0),
             ]))
             .collect::<Vec<_>>(),
             vec![(C2, C0), (C6, C0), (C3, C0), (C5, C1), (C4, C1), (C7, C1)]
         );
         assert_eq!(
             CornerPerm2Cycles::new(CubicleArray::new([
-                CornerState::new(C0, CornerOrientation::O0),
-                CornerState::new(C1, CornerOrientation::O0),
-                CornerState::new(C2, CornerOrientation::O0),
-                CornerState::new(C3, CornerOrientation::O0),
-                CornerState::new(C4, CornerOrientation::O0),
-                CornerState::new(C5, CornerOrientation::O0),
-                CornerState::new(C6, CornerOrientation::O0),
-                CornerState::new(C7, CornerOrientation::O0),
+                CornerCubie::new(C0, CornerOrientation::O0),
+                CornerCubie::new(C1, CornerOrientation::O0),
+                CornerCubie::new(C2, CornerOrientation::O0),
+                CornerCubie::new(C3, CornerOrientation::O0),
+                CornerCubie::new(C4, CornerOrientation::O0),
+                CornerCubie::new(C5, CornerOrientation::O0),
+                CornerCubie::new(C6, CornerOrientation::O0),
+                CornerCubie::new(C7, CornerOrientation::O0),
             ]))
             .collect::<Vec<_>>(),
             vec![]
@@ -119,18 +119,18 @@ mod tests {
         use EdgeCubicle::*;
         assert_eq!(
             EdgePerm2Cycles::new(CubicleArray::new([
-                EdgeState::new(C8, EdgeOrientation::O0),
-                EdgeState::new(C6, EdgeOrientation::O0),
-                EdgeState::new(C1, EdgeOrientation::O0),
-                EdgeState::new(C7, EdgeOrientation::O0),
-                EdgeState::new(C0, EdgeOrientation::O0),
-                EdgeState::new(C10, EdgeOrientation::O0),
-                EdgeState::new(C5, EdgeOrientation::O0),
-                EdgeState::new(C4, EdgeOrientation::O0),
-                EdgeState::new(C11, EdgeOrientation::O0),
-                EdgeState::new(C2, EdgeOrientation::O0),
-                EdgeState::new(C9, EdgeOrientation::O0),
-                EdgeState::new(C3, EdgeOrientation::O0),
+                EdgeCubie::new(C8, EdgeOrientation::O0),
+                EdgeCubie::new(C6, EdgeOrientation::O0),
+                EdgeCubie::new(C1, EdgeOrientation::O0),
+                EdgeCubie::new(C7, EdgeOrientation::O0),
+                EdgeCubie::new(C0, EdgeOrientation::O0),
+                EdgeCubie::new(C10, EdgeOrientation::O0),
+                EdgeCubie::new(C5, EdgeOrientation::O0),
+                EdgeCubie::new(C4, EdgeOrientation::O0),
+                EdgeCubie::new(C11, EdgeOrientation::O0),
+                EdgeCubie::new(C2, EdgeOrientation::O0),
+                EdgeCubie::new(C9, EdgeOrientation::O0),
+                EdgeCubie::new(C3, EdgeOrientation::O0),
             ]))
             .collect::<Vec<_>>(),
             vec![
@@ -148,18 +148,18 @@ mod tests {
         );
         assert_eq!(
             EdgePerm2Cycles::new(CubicleArray::new([
-                EdgeState::new(C0, EdgeOrientation::O0),
-                EdgeState::new(C1, EdgeOrientation::O0),
-                EdgeState::new(C2, EdgeOrientation::O0),
-                EdgeState::new(C3, EdgeOrientation::O0),
-                EdgeState::new(C4, EdgeOrientation::O0),
-                EdgeState::new(C5, EdgeOrientation::O0),
-                EdgeState::new(C6, EdgeOrientation::O0),
-                EdgeState::new(C7, EdgeOrientation::O0),
-                EdgeState::new(C8, EdgeOrientation::O0),
-                EdgeState::new(C9, EdgeOrientation::O0),
-                EdgeState::new(C10, EdgeOrientation::O0),
-                EdgeState::new(C11, EdgeOrientation::O0),
+                EdgeCubie::new(C0, EdgeOrientation::O0),
+                EdgeCubie::new(C1, EdgeOrientation::O0),
+                EdgeCubie::new(C2, EdgeOrientation::O0),
+                EdgeCubie::new(C3, EdgeOrientation::O0),
+                EdgeCubie::new(C4, EdgeOrientation::O0),
+                EdgeCubie::new(C5, EdgeOrientation::O0),
+                EdgeCubie::new(C6, EdgeOrientation::O0),
+                EdgeCubie::new(C7, EdgeOrientation::O0),
+                EdgeCubie::new(C8, EdgeOrientation::O0),
+                EdgeCubie::new(C9, EdgeOrientation::O0),
+                EdgeCubie::new(C10, EdgeOrientation::O0),
+                EdgeCubie::new(C11, EdgeOrientation::O0),
             ]))
             .collect::<Vec<_>>(),
             vec![]

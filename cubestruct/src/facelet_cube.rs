@@ -1,23 +1,23 @@
-use crate::cubestate::{CubeState, CubeStateConstructionError};
 use crate::cubie::*;
+use crate::cubie_cube::{CubieCubeConstructionError, CubieCube};
 
-/// A simpler cube representation than [`CubeState`]. A `DumbCube` is just an array of
+/// A simpler cube representation than [`CubieCube`]. A `FaceletCube` is just an array of
 /// 6 faces where each face is an array of 9 colors.
 #[derive(Debug, Eq, PartialEq)]
-pub struct DumbCube {
+pub struct FaceletCube {
     /// See [`Self::get_face()`] for the layout of this array
     faces: [[Color; 9]; 6],
 }
 
-impl DumbCube {
-    pub fn builder() -> DumbCubeBuilder {
-        DumbCubeBuilder {
+impl FaceletCube {
+    pub fn builder() -> FaceletCubeBuilder {
+        FaceletCubeBuilder {
             initialized: [[false; 9]; 6],
             faces: [[Color::Blue; 9]; 6],
         }
     }
 
-    pub fn to_cubestate(&self) -> Result<CubeState, DumbConversionError> {
+    pub fn to_cubie_cube(&self) -> Result<CubieCube, FaceletConversionError> {
         let corner_map = {
             use Color::*;
             use CornerCubicle::*;
@@ -35,9 +35,9 @@ impl DumbCube {
 
         // another yucky hack to avoid MaybeUninit (because logic error is easier to debug than UB)
         let mut corners =
-            CubicleArray::new([CornerState::new(CornerCubicle::C0, CornerOrientation::O0); 8]);
+            CubicleArray::new([CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0); 8]);
         let mut edges =
-            CubicleArray::new([EdgeState::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
+            CubicleArray::new([EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
 
         'outer: for (home, home_colors, _) in corner_map {
             for orientation in CornerOrientation::all() {
@@ -58,13 +58,13 @@ impl DumbCube {
 
                 for (cubicle, colors_in_cubicle) in colored_corner_cubies {
                     if corner_shift(home_colors, orientation) == colors_in_cubicle {
-                        corners[home] = CornerState::new(cubicle, orientation);
+                        corners[home] = CornerCubie::new(cubicle, orientation);
                         continue 'outer;
                     }
                 }
             }
-            // The `home` cubie doesn't exist in the DumbCube
-            return Err(DumbConversionError::CornerCubieNotFound { cubicle: home });
+            // The `home` cubie doesn't exist in the FaceletCube
+            return Err(FaceletConversionError::CornerCubieNotFound { cubicle: home });
         }
 
         let edge_map = {
@@ -97,19 +97,19 @@ impl DumbCube {
 
                 for (cubicle, colors_in_cubicle) in colored_edge_cubies {
                     if edge_shift(home_colors, orientation) == colors_in_cubicle {
-                        edges[home] = EdgeState::new(cubicle, orientation);
+                        edges[home] = EdgeCubie::new(cubicle, orientation);
                         continue 'outer;
                     }
                 }
             }
-            // The `home` cubie doesn't exist in the DumbCube
-            return Err(DumbConversionError::EdgeCubieNotFound { cubicle: home });
+            // The `home` cubie doesn't exist in the FaceletCube
+            return Err(FaceletConversionError::EdgeCubieNotFound { cubicle: home });
         }
 
-        Ok(CubeState::try_new(corners, edges)?)
+        Ok(CubieCube::try_new(corners, edges)?)
     }
 
-    pub(crate) fn from_cubestate(state: &CubeState) -> Self {
+    pub(crate) fn from_cubie_cube(state: &CubieCube) -> Self {
         let corner_cubie_colors = {
             use Color::*;
             use CornerCubicle::*;
@@ -248,18 +248,18 @@ impl DumbCube {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum DumbConversionError {
-    #[error("The cubie that lives in {cubicle:?} was not found in the DumbCube")]
+pub enum FaceletConversionError {
+    #[error("The cubie that lives in {cubicle:?} was not found in the FaceletCube")]
     CornerCubieNotFound { cubicle: CornerCubicle },
-    #[error("The cubie that lives in {cubicle:?} was not found in the DumbCube")]
+    #[error("The cubie that lives in {cubicle:?} was not found in the FaceletCube")]
     EdgeCubieNotFound { cubicle: EdgeCubicle },
-    #[error("CubeState::try_new() failed")]
-    CubeStateConstruction(CubeStateConstructionError),
+    #[error("CubieCube::try_new() failed")]
+    CubieCubeConstruction(CubieCubeConstructionError),
 }
 
-impl From<CubeStateConstructionError> for DumbConversionError {
-    fn from(e: CubeStateConstructionError) -> Self {
-        Self::CubeStateConstruction(e)
+impl From<CubieCubeConstructionError> for FaceletConversionError {
+    fn from(e: CubieCubeConstructionError) -> Self {
+        Self::CubieCubeConstruction(e)
     }
 }
 
@@ -281,18 +281,18 @@ const fn edge_shift([a, b]: [Color; 2], orientation: EdgeOrientation) -> [Color;
 }
 
 #[derive(Debug)]
-pub struct DumbCubeBuilder {
+pub struct FaceletCubeBuilder {
     initialized: [[bool; 9]; 6],
     faces: [[Color; 9]; 6],
 }
 
-impl DumbCubeBuilder {
+impl FaceletCubeBuilder {
     /// Returns `None` if not all faces were initialized
-    pub fn build(self) -> Option<DumbCube> {
+    pub fn build(self) -> Option<FaceletCube> {
         if self.initialized.into_iter().flatten().any(|x| x == false) {
             None
         } else {
-            Some(DumbCube { faces: self.faces })
+            Some(FaceletCube { faces: self.faces })
         }
     }
 
@@ -333,19 +333,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dumb_conversions() {
+    fn facelet_cube_conversions() {
         assert_eq!(
-            CubeState::SOLVED.to_dumb().to_cubestate().unwrap(),
-            CubeState::SOLVED
+            CubieCube::SOLVED.to_facelet_cube().to_cubie_cube().unwrap(),
+            CubieCube::SOLVED
         );
 
-        assert_eq!(TPERM, TPERM.to_cubestate().unwrap().to_dumb());
-        assert_eq!(RMOVE, RMOVE.to_cubestate().unwrap().to_dumb());
+        assert_eq!(TPERM, TPERM.to_cubie_cube().unwrap().to_facelet_cube());
+        assert_eq!(RMOVE, RMOVE.to_cubie_cube().unwrap().to_facelet_cube());
     }
 
-    const TPERM: DumbCube = {
+    const TPERM: FaceletCube = {
         use Color::*;
-        DumbCube {
+        FaceletCube {
             faces: [
                 [
                     Orange, Red, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
@@ -363,9 +363,9 @@ mod tests {
         }
     };
 
-    const RMOVE: DumbCube = {
+    const RMOVE: FaceletCube = {
         use Color::*;
-        DumbCube {
+        FaceletCube {
             faces: [
                 [
                     Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange, Orange,
@@ -429,7 +429,7 @@ fn print_template_line(lnr: usize, facelet_colors: [Color; 9]) {
     }
 }
 
-fn println_render_cube(render: &DumbCube) {
+fn println_render_cube(render: &FaceletCube) {
     for i in 0..7 {
         print!("{TMPLSPACE}");
         print_template_line(i, render.get_face(Color::White));

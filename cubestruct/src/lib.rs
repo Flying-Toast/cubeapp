@@ -1,7 +1,7 @@
-mod cubestate;
 mod cubie;
+mod cubie_cube;
+mod facelet_cube;
 mod iter_2cycles;
 
-pub mod dumb;
-
-pub use cubestate::CubeState;
+pub use cubie_cube::CubieCube;
+pub use facelet_cube::{Color, FaceletCube};

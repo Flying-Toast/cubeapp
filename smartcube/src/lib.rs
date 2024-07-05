@@ -25,7 +25,7 @@ pub enum SmartcubeEvent {
     /// New battery level in 0..=100
     Battery(u8),
     /// State change with timestamp
-    StateChange(cubestruct::CubeState, std::time::Instant),
+    StateChange(cubestruct::CubieCube, std::time::Instant),
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

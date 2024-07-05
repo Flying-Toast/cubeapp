@@ -1,10 +1,7 @@
 use crate::crc::crc16;
 use anyhow::{anyhow, bail, Result};
 use btleplug::api::BDAddr;
-use cubestruct::{
-    dumb::{Color, DumbCube},
-    CubeState,
-};
+use cubestruct::{Color, CubieCube, FaceletCube};
 use std::fmt;
 use thiserror::Error;
 
@@ -74,7 +71,7 @@ pub enum C2aBody {
 
 #[derive(Debug)]
 pub struct CubeHello {
-    pub state: CubeState,
+    pub state: CubieCube,
     pub battery: u8,
 }
 
@@ -135,7 +132,7 @@ impl fmt::Display for Turn {
 
 #[derive(Debug)]
 pub struct StateChange {
-    pub state: CubeState,
+    pub state: CubieCube,
     pub battery: u8,
     pub turn: Turn,
     pub needs_ack: bool,
@@ -228,7 +225,7 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
             let battery = p.get_u8(35)?;
 
             C2aBody::CubeHello(CubeHello {
-                state: cubestate_from_bytes(rawstate),
+                state: cubie_cube_from_bytes(rawstate),
                 battery,
             })
         }
@@ -240,9 +237,9 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
 
             // workaround for slice move glitch
             let state = if needs_ack {
-                CubeState::SOLVED
+                CubieCube::SOLVED
             } else {
-                cubestate_from_bytes(rawstate)
+                cubie_cube_from_bytes(rawstate)
             };
 
             C2aBody::StateChange(StateChange {
@@ -266,7 +263,7 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
     })
 }
 
-fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
+fn cubie_cube_from_bytes(raw: &[u8]) -> CubieCube {
     let color_order = [
         Color::White,
         Color::Red,
@@ -275,7 +272,7 @@ fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
         Color::Orange,
         Color::Blue,
     ];
-    let mut builder = DumbCube::builder();
+    let mut builder = FaceletCube::builder();
 
     let mut facelet_colors = raw
         .iter()
@@ -288,7 +285,7 @@ fn cubestate_from_bytes(raw: &[u8]) -> CubeState {
         }
     }
 
-    builder.build().unwrap().to_cubestate().unwrap()
+    builder.build().unwrap().to_cubie_cube().unwrap()
 }
 
 fn color_from_u8(x: u8) -> Option<Color> {

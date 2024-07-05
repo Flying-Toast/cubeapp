@@ -2,8 +2,8 @@ use std::fmt;
 use std::mem::transmute;
 use std::ops::{Index, IndexMut};
 
-pub type Corners = CubicleArray<CornerState, 8>;
-pub type Edges = CubicleArray<EdgeState, 12>;
+pub type Corners = CubicleArray<CornerCubie, 8>;
+pub type Edges = CubicleArray<EdgeCubie, 12>;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct CubicleArray<T, const N: usize>([T; N]);
@@ -126,20 +126,20 @@ impl CornerOrientation {
 
 /// Permutation + orientation of a single corner cubie
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct CornerState(u8);
+pub struct CornerCubie(u8);
 
-impl fmt::Debug for CornerState {
+impl fmt::Debug for CornerCubie {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "CornerState({:?}, {:?})",
+            "CornerCubie({:?}, {:?})",
             self.cubicle(),
             self.orientation()
         )
     }
 }
 
-impl CornerState {
+impl CornerCubie {
     #[must_use]
     pub const fn new(p: CornerCubicle, o: CornerOrientation) -> Self {
         Self(((o as u8) << 3) | (p as u8))
@@ -154,7 +154,7 @@ impl CornerState {
 
     #[must_use]
     pub const fn orientation(self) -> CornerOrientation {
-        // SAFETY: All ways of constructing a `CornerState` preserve this invariant
+        // SAFETY: All ways of constructing a `CornerCubie` preserve this invariant
         unsafe { transmute::<u8, CornerOrientation>(self.0 >> 3) }
     }
 
@@ -226,20 +226,20 @@ impl EdgeOrientation {
 
 /// Permutation + orientation of a single edge cubie
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct EdgeState(u8);
+pub struct EdgeCubie(u8);
 
-impl fmt::Debug for EdgeState {
+impl fmt::Debug for EdgeCubie {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "EdgeState({:?}, {:?})",
+            "EdgeCubie({:?}, {:?})",
             self.cubicle(),
             self.orientation()
         )
     }
 }
 
-impl EdgeState {
+impl EdgeCubie {
     #[must_use]
     pub const fn new(p: EdgeCubicle, o: EdgeOrientation) -> Self {
         Self(((p as u8) << 1) | (o as u8))
@@ -271,7 +271,7 @@ mod tests {
     fn cornerstate() {
         for c in CornerCubicle::all() {
             for o in CornerOrientation::all() {
-                let state = CornerState::new(c, o);
+                let state = CornerCubie::new(c, o);
                 assert_eq!(c, state.cubicle());
                 assert_eq!(o, state.orientation());
             }
@@ -282,7 +282,7 @@ mod tests {
     fn edgestate() {
         for c in EdgeCubicle::all() {
             for o in EdgeOrientation::all() {
-                let state = EdgeState::new(c, o);
+                let state = EdgeCubie::new(c, o);
                 assert_eq!(c, state.cubicle());
                 assert_eq!(o, state.orientation());
             }
