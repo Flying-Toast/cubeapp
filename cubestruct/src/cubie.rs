@@ -2,9 +2,6 @@ use std::fmt;
 use std::mem::transmute;
 use std::ops::{Index, IndexMut};
 
-pub type Corners = CubicleArray<CornerCubie, 8>;
-pub type Edges = CubicleArray<EdgeCubie, 12>;
-
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct CubicleArray<T, const N: usize>([T; N]);
 

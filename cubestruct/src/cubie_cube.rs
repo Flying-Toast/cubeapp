@@ -31,17 +31,17 @@ use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
 pub struct CubieCube {
     /// `corners[i]` is the state of the corner whose home is cubicle `i`.
     /// e.g. `corners[C4].cubicle()` returns the cubicle in which the cubie that lives at C4 currently is located.
-    corners: Corners,
+    corners: CubicleArray<CornerCubie, 8>,
     /// `edges[i]` is the state of the edge whose home is cubicle `i`
     /// e.g. `edges[C0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
-    edges: Edges,
+    edges: CubicleArray<EdgeCubie, 12>,
 }
 
 impl CubieCube {
     /// Returns `None` if the given cubie arrays are invalid (i.e. the put multiple cubies in the same cubicle).
     pub(crate) fn try_new(
-        corners: Corners,
-        edges: Edges,
+        corners: CubicleArray<CornerCubie, 8>,
+        edges: CubicleArray<EdgeCubie, 12>,
     ) -> Result<Self, CubieCubeConstructionError> {
         let mut seen_corners = CubicleArray::new([false; 8]);
         let mut seen_edges = CubicleArray::new([false; 12]);
@@ -124,8 +124,8 @@ impl CubieCube {
     pub const SOLVED: Self = Self {
         corners: {
             use CornerCubicle::*;
-            use CornerOrientation::O0;
             use CornerCubie as S;
+            use CornerOrientation::O0;
             CubicleArray::new([
                 S::new(C0, O0),
                 S::new(C1, O0),
@@ -139,8 +139,8 @@ impl CubieCube {
         },
         edges: {
             use EdgeCubicle::*;
-            use EdgeOrientation::O0;
             use EdgeCubie as S;
+            use EdgeOrientation::O0;
             CubicleArray::new([
                 S::new(C0, O0),
                 S::new(C1, O0),

@@ -2,11 +2,11 @@ use crate::cubie::*;
 
 #[derive(Debug)]
 struct CornerPerm2Cycles {
-    corners: Corners,
+    corners: CubicleArray<CornerCubie, 8>,
 }
 
 impl CornerPerm2Cycles {
-    fn new(corners: Corners) -> Self {
+    fn new(corners: CubicleArray<CornerCubie, 8>) -> Self {
         Self { corners }
     }
 }
@@ -36,17 +36,17 @@ impl Iterator for CornerPerm2Cycles {
     }
 }
 
-pub fn corner_2cycles(corners: Corners) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
+pub fn corner_2cycles(corners: CubicleArray<CornerCubie, 8>) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
     CornerPerm2Cycles::new(corners)
 }
 
 #[derive(Debug)]
 struct EdgePerm2Cycles {
-    edges: Edges,
+    edges: CubicleArray<EdgeCubie, 12>,
 }
 
 impl EdgePerm2Cycles {
-    fn new(edges: Edges) -> Self {
+    fn new(edges: CubicleArray<EdgeCubie, 12>) -> Self {
         Self { edges }
     }
 }
@@ -72,7 +72,7 @@ impl Iterator for EdgePerm2Cycles {
     }
 }
 
-pub fn edge_2cycles(edges: Edges) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
+pub fn edge_2cycles(edges: CubicleArray<EdgeCubie, 12>) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
     EdgePerm2Cycles::new(edges)
 }
 
