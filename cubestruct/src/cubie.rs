@@ -7,7 +7,9 @@ pub type Edges = CubicleArray<EdgeCubie, 12>;
 
 pub trait Cubicle: fmt::Debug + Eq + Copy {
     /// Enumerate all values of the type
-    fn all() -> impl Iterator<Item = Self>;
+    fn all() -> impl Iterator<Item = Self> + DoubleEndedIterator + ExactSizeIterator;
+
+    fn as_u8(self) -> u8;
 }
 
 pub trait Orientation: fmt::Debug + Eq + Copy {
@@ -28,6 +30,8 @@ pub trait Orientation: fmt::Debug + Eq + Copy {
 
     /// Generate a random orientation
     fn random<R: rand::Rng>(rng: &mut R) -> Self;
+
+    fn as_u8(self) -> u8;
 }
 
 pub trait Cubie<C, O>: fmt::Debug + Eq + Copy + Sized {
@@ -170,9 +174,13 @@ pub enum CornerCubicle {
 }
 
 impl Cubicle for CornerCubicle {
-    fn all() -> impl Iterator<Item = Self> {
+    fn all() -> impl Iterator<Item = Self> + DoubleEndedIterator + ExactSizeIterator {
         use CornerCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7].into_iter()
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 
@@ -209,6 +217,10 @@ impl Orientation for CornerOrientation {
 
     fn random<R: rand::Rng>(rng: &mut R) -> Self {
         unsafe { transmute::<u8, CornerOrientation>(rng.gen_range(0..=2)) }
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 
@@ -272,9 +284,13 @@ pub enum EdgeCubicle {
 }
 
 impl Cubicle for EdgeCubicle {
-    fn all() -> impl Iterator<Item = Self> {
+    fn all() -> impl Iterator<Item = Self> + DoubleEndedIterator + ExactSizeIterator {
         use EdgeCubicle::*;
         [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11].into_iter()
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 
@@ -308,6 +324,10 @@ impl Orientation for EdgeOrientation {
 
     fn random<R: rand::Rng>(rng: &mut R) -> Self {
         unsafe { transmute::<u8, EdgeOrientation>(rng.gen_range(0..=1)) }
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 

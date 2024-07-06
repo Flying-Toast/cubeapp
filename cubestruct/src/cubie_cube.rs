@@ -148,6 +148,7 @@ impl CubieCube {
         },
     };
 
+    /// Returns a new CubieCube that is the inverse of `self`
     #[must_use]
     pub fn inverse(&self) -> Self {
         fn aux<C: Cubies>(cubies: C, ret: &mut C) {

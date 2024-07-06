@@ -1,3 +1,4 @@
+mod coord_cube;
 mod cubie;
 mod cubie_cube;
 mod facelet_cube;
