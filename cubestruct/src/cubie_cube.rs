@@ -1,6 +1,7 @@
 use crate::cubie::*;
 use crate::facelet_cube::FaceletCube;
 use crate::iter_2cycles::perm_2cycles;
+use std::ops::Index;
 
 /// Corner cubicle numbering:
 /// ```text
@@ -147,16 +148,6 @@ impl CubieCube {
         },
     };
 
-    /// Get the state of the corner whose home is the given `cubicle`
-    pub(crate) fn get_corner(&self, cubicle: CornerCubicle) -> CornerCubie {
-        self.corners[cubicle]
-    }
-
-    /// Get the state of the edge whose home is the given `cubicle`
-    pub(crate) fn get_edge(&self, cubicle: EdgeCubicle) -> EdgeCubie {
-        self.edges[cubicle]
-    }
-
     #[must_use]
     pub fn inverse(&self) -> Self {
         fn aux<C: Cubies>(cubies: C, ret: &mut C) {
@@ -200,6 +191,20 @@ impl CubieCube {
         aux(self.edges, rhs.edges, &mut ret.edges);
 
         ret
+    }
+}
+
+impl Index<CornerCubicle> for CubieCube {
+    type Output = CornerCubie;
+    fn index(&self, index: CornerCubicle) -> &Self::Output {
+        &self.corners[index]
+    }
+}
+
+impl Index<EdgeCubicle> for CubieCube {
+    type Output = EdgeCubie;
+    fn index(&self, index: EdgeCubicle) -> &Self::Output {
+        &self.edges[index]
     }
 }
 

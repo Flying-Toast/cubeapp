@@ -58,7 +58,8 @@ pub trait Cubies:
     type Orientation: Orientation;
     type Cubie: Cubie<Self::Cubicle, Self::Orientation>;
     /// Generic array that can be indexed by this cubie's cubicle type
-    type CubicleArray<T>: Index<Self::Cubicle, Output = T>
+    type CubicleArray<T: Copy>: Copy
+        + Index<Self::Cubicle, Output = T>
         + IndexMut<Self::Cubicle>
         + IntoIterator<Item = T>;
 
@@ -75,7 +76,7 @@ impl Cubies for Corners {
     type Cubicle = CornerCubicle;
     type Orientation = CornerOrientation;
     type Cubie = CornerCubie;
-    type CubicleArray<T> = CubicleArray<T, 8>;
+    type CubicleArray<T: Copy> = CubicleArray<T, 8>;
 
     fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
         self.0.swap(a as usize, b as usize)
@@ -95,7 +96,7 @@ impl Cubies for Edges {
     type Cubicle = EdgeCubicle;
     type Orientation = EdgeOrientation;
     type Cubie = EdgeCubie;
-    type CubicleArray<T> = CubicleArray<T, 12>;
+    type CubicleArray<T: Copy> = CubicleArray<T, 12>;
 
     fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
         self.0.swap(a as usize, b as usize)

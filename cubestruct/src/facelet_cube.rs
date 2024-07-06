@@ -1,5 +1,63 @@
 use crate::cubie::*;
-use crate::cubie_cube::{CubieCubeConstructionError, CubieCube};
+use crate::cubie_cube::{CubieCube, CubieCubeConstructionError};
+use std::ops::{Index, IndexMut};
+
+trait CubiesExt: Cubies {
+    type FaceletArray<T: Eq + Copy>: Copy
+        + Eq
+        + Index<usize, Output = T>
+        + IndexMut<usize>
+        + IntoIterator<Item = T>;
+
+    fn new_facelet_array<T: Eq + Copy>(init: T) -> Self::FaceletArray<T>;
+
+    fn make_missing_cubie_err(cubicle: Self::Cubicle) -> FaceletConversionError;
+
+    fn rotate_facelet_array<T: Eq + Copy>(
+        arr: Self::FaceletArray<T>,
+        amt: Self::Orientation,
+    ) -> Self::FaceletArray<T>;
+}
+
+impl CubiesExt for Corners {
+    type FaceletArray<T: Eq + Copy> = [T; 3];
+
+    fn new_facelet_array<T: Eq + Copy>(init: T) -> Self::FaceletArray<T> {
+        [init; 3]
+    }
+
+    fn make_missing_cubie_err(cubicle: Self::Cubicle) -> FaceletConversionError {
+        FaceletConversionError::CornerCubieNotFound { cubicle }
+    }
+
+    fn rotate_facelet_array<T: Eq + Copy>(
+        mut arr: Self::FaceletArray<T>,
+        amt: Self::Orientation,
+    ) -> Self::FaceletArray<T> {
+        arr.rotate_right(amt as usize);
+        arr
+    }
+}
+
+impl CubiesExt for Edges {
+    type FaceletArray<T: Eq + Copy> = [T; 2];
+
+    fn new_facelet_array<T: Eq + Copy>(init: T) -> Self::FaceletArray<T> {
+        [init; 2]
+    }
+
+    fn make_missing_cubie_err(cubicle: Self::Cubicle) -> FaceletConversionError {
+        FaceletConversionError::EdgeCubieNotFound { cubicle }
+    }
+
+    fn rotate_facelet_array<T: Eq + Copy>(
+        mut arr: Self::FaceletArray<T>,
+        amt: Self::Orientation,
+    ) -> Self::FaceletArray<T> {
+        arr.rotate_right(amt as usize);
+        arr
+    }
+}
 
 /// A simpler cube representation than [`CubieCube`]. A `FaceletCube` is just an array of
 /// 6 faces where each face is an array of 9 colors.
@@ -33,40 +91,6 @@ impl FaceletCube {
             ])
         };
 
-        // another yucky hack to avoid MaybeUninit (because logic error is easier to debug than UB)
-        let mut corners =
-            CubicleArray::new([CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0); 8]);
-        let mut edges =
-            CubicleArray::new([EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
-
-        'outer: for (home, home_colors, _) in corner_map {
-            for orientation in CornerOrientation::all() {
-                // list of `(cubicle, oriented colors of the cubie in that cubicle)`
-                let colored_corner_cubies =
-                    corner_map.into_iter().map(|(cubicle, faces, indices)| {
-                        let [fa, fb, fc] = faces;
-                        let [ia, ib, ic] = indices;
-                        (
-                            cubicle,
-                            [
-                                self.get_face(fa)[ia],
-                                self.get_face(fb)[ib],
-                                self.get_face(fc)[ic],
-                            ],
-                        )
-                    });
-
-                for (cubicle, colors_in_cubicle) in colored_corner_cubies {
-                    if corner_shift(home_colors, orientation) == colors_in_cubicle {
-                        corners[home] = CornerCubie::new(cubicle, orientation);
-                        continue 'outer;
-                    }
-                }
-            }
-            // The `home` cubie doesn't exist in the FaceletCube
-            return Err(FaceletConversionError::CornerCubieNotFound { cubicle: home });
-        }
-
         let edge_map = {
             use Color::*;
             use EdgeCubicle::*;
@@ -86,30 +110,52 @@ impl FaceletCube {
             ])
         };
 
-        'outer: for (home, home_colors, _) in edge_map {
-            for orientation in EdgeOrientation::all() {
-                // list of `(cubicle, oriented colors of the cubie in that cubicle)`
-                let colored_edge_cubies = edge_map.into_iter().map(|(cubicle, faces, indices)| {
-                    let [fa, fb] = faces;
-                    let [ia, ib] = indices;
-                    (cubicle, [self.get_face(fa)[ia], self.get_face(fb)[ib]])
-                });
+        fn aux<C: CubiesExt>(
+            map: C::CubicleArray<(C::Cubicle, C::FaceletArray<Color>, C::FaceletArray<usize>)>,
+            output_cubies: &mut C,
+            facelet_cube: &FaceletCube,
+        ) -> Result<(), FaceletConversionError> {
+            'outer: for (home, home_colors, _) in map {
+                for orientation in C::Orientation::all() {
+                    // list of `(cubicle, oriented colors of the cubie in that cubicle)`
+                    let colored_cubies = map.into_iter().map(|(cubicle, faces, indices)| {
+                        // dummy init value
+                        let mut arr = C::new_facelet_array(Color::Blue);
 
-                for (cubicle, colors_in_cubicle) in colored_edge_cubies {
-                    if edge_shift(home_colors, orientation) == colors_in_cubicle {
-                        edges[home] = EdgeCubie::new(cubicle, orientation);
-                        continue 'outer;
+                        for (i, (face, index)) in faces.into_iter().zip(indices).enumerate() {
+                            arr[i] = facelet_cube.get_face(face)[index];
+                        }
+
+                        (cubicle, arr)
+                    });
+
+                    for (cubicle, colors_in_cubicle) in colored_cubies {
+                        if C::rotate_facelet_array(home_colors, orientation) == colors_in_cubicle {
+                            output_cubies[home] = C::Cubie::new(cubicle, orientation);
+                            continue 'outer;
+                        }
                     }
                 }
+                // The `home` cubie doesn't exist in the FaceletCube
+                return Err(C::make_missing_cubie_err(home));
             }
-            // The `home` cubie doesn't exist in the FaceletCube
-            return Err(FaceletConversionError::EdgeCubieNotFound { cubicle: home });
+            Ok(())
         }
+
+        // another yucky hack to avoid MaybeUninit (because logic error is easier to debug than UB)
+        let mut corners =
+            CubicleArray::new([CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0); 8]);
+        let mut edges =
+            CubicleArray::new([EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0); 12]);
+
+        aux(corner_map, &mut corners, self)?;
+        aux(edge_map, &mut edges, self)?;
 
         Ok(CubieCube::try_new(corners, edges)?)
     }
 
-    pub(crate) fn from_cubie_cube(state: &CubieCube) -> Self {
+    /// Use [`CubieCube::from_facelet_cube`] for a `pub` interface to this
+    pub(crate) fn from_cubie_cube(cubie_cube: &CubieCube) -> Self {
         let corner_cubie_colors = {
             use Color::*;
             use CornerCubicle::*;
@@ -187,28 +233,43 @@ impl FaceletCube {
         // yucky way to avoid using MaybeUninit
         let mut faces = [[Color::Blue; 9]; 6];
 
-        for (home_cubicle, colors) in corner_cubie_colors {
-            // `cornerstate` is the cubie that normally lives in `home_cubicle`.
-            // `colors` are the colors of that cubie.
-            // `cornerstate.cubicle()` is the current cubicle that cubie is in
-            let cornerstate = state.get_corner(home_cubicle);
-            let oriented_colors = corner_shift(colors, cornerstate.orientation());
-            let face_map = corner_face_index_map[cornerstate.cubicle()];
-            let cubicle_colors = corner_cubie_colors[cornerstate.cubicle()].1;
-            faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
-            faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
-            faces[cubicle_colors[2] as usize][face_map[2]] = oriented_colors[2];
+        fn aux<C: CubiesExt>(
+            faces: &mut [[Color; 9]; 6],
+            face_index_map: C::CubicleArray<C::FaceletArray<usize>>,
+            cubie_colors: C::CubicleArray<(C::Cubicle, C::FaceletArray<Color>)>,
+            cubie_cube: &CubieCube,
+        ) where
+            CubieCube: Index<C::Cubicle, Output = C::Cubie>,
+        {
+            for (home_cubicle, colors) in cubie_colors {
+                // `cubie` is the cubie that normally lives in `home_cubicle`.
+                // `colors` are the colors of that cubie.
+                // `cornerstate.cubicle()` is the current cubicle that cubie is in
+                let cubie = cubie_cube[home_cubicle];
+                let oriented_colors = C::rotate_facelet_array(colors, cubie.orientation());
+                let face_map = face_index_map[cubie.cubicle()];
+                let cubicle_colors = cubie_colors[cubie.cubicle()].1;
+
+                for (i, face_map_item) in face_map.into_iter().enumerate() {
+                    faces[cubicle_colors[i] as usize][face_map_item] = oriented_colors[i];
+                }
+            }
         }
 
-        for (home_cubicle, colors) in edge_cubie_colors {
-            let edgestate = state.get_edge(home_cubicle);
-            let oriented_colors = edge_shift(colors, edgestate.orientation());
-            let face_map = edge_face_index_map[edgestate.cubicle()];
-            let cubicle_colors = edge_cubie_colors[edgestate.cubicle()].1;
-            faces[cubicle_colors[0] as usize][face_map[0]] = oriented_colors[0];
-            faces[cubicle_colors[1] as usize][face_map[1]] = oriented_colors[1];
-        }
+        aux::<Corners>(
+            &mut faces,
+            corner_face_index_map,
+            corner_cubie_colors,
+            cubie_cube,
+        );
+        aux::<Edges>(
+            &mut faces,
+            edge_face_index_map,
+            edge_cubie_colors,
+            cubie_cube,
+        );
 
+        // center pieces
         for c in Color::all() {
             faces[c as usize][4] = c;
         }
@@ -260,23 +321,6 @@ pub enum FaceletConversionError {
 impl From<CubieCubeConstructionError> for FaceletConversionError {
     fn from(e: CubieCubeConstructionError) -> Self {
         Self::CubieCubeConstruction(e)
-    }
-}
-
-/// Rotates a corner's colors from the given solved orientation into the orientation `orientation`.
-const fn corner_shift([a, b, c]: [Color; 3], orientation: CornerOrientation) -> [Color; 3] {
-    match orientation {
-        CornerOrientation::O0 => [a, b, c],
-        CornerOrientation::O1 => [c, a, b],
-        CornerOrientation::O2 => [b, c, a],
-    }
-}
-
-/// Flips an edge's colors from the given solved orientation into the orientation `orientation`.
-const fn edge_shift([a, b]: [Color; 2], orientation: EdgeOrientation) -> [Color; 2] {
-    match orientation {
-        EdgeOrientation::O0 => [a, b],
-        EdgeOrientation::O1 => [b, a],
     }
 }
 
