@@ -1,6 +1,6 @@
 use crate::cubie::*;
 use crate::facelet_cube::FaceletCube;
-use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
+use crate::iter_2cycles::perm_2cycles;
 
 /// Corner cubicle numbering:
 /// ```text
@@ -31,63 +31,59 @@ use crate::iter_2cycles::{corner_2cycles, edge_2cycles};
 pub struct CubieCube {
     /// `corners[i]` is the state of the corner whose home is cubicle `i`.
     /// e.g. `corners[C4].cubicle()` returns the cubicle in which the cubie that lives at C4 currently is located.
-    corners: CubicleArray<CornerCubie, 8>,
+    corners: Corners,
     /// `edges[i]` is the state of the edge whose home is cubicle `i`
     /// e.g. `edges[C0].cubicle()` returns the cubicle in which the cubie that lives at C0 currently is located.
-    edges: CubicleArray<EdgeCubie, 12>,
+    edges: Edges,
 }
 
 impl CubieCube {
     /// Returns `None` if the given cubie arrays are invalid (i.e. the put multiple cubies in the same cubicle).
     pub(crate) fn try_new(
-        corners: CubicleArray<CornerCubie, 8>,
-        edges: CubicleArray<EdgeCubie, 12>,
+        corners: Corners,
+        edges: Edges,
     ) -> Result<Self, CubieCubeConstructionError> {
-        let mut seen_corners = CubicleArray::new([false; 8]);
-        let mut seen_edges = CubicleArray::new([false; 12]);
+        fn aux<C: Cubies>(cubies: C) -> Result<C, CubieCubeConstructionError> {
+            let mut seen = C::new_array(false);
+            for i in cubies {
+                seen[i.cubicle()] = true;
+            }
+            if seen.into_iter().any(|x| x == false) {
+                Err(CubieCubeConstructionError::EmptyCubicles)
+            } else {
+                Ok(cubies)
+            }
+        }
 
-        for i in corners {
-            seen_corners[i.cubicle()] = true;
-        }
-        for i in edges {
-            seen_edges[i.cubicle()] = true;
-        }
-
-        if seen_corners.into_iter().any(|x| x == false)
-            || seen_edges.into_iter().any(|x| x == false)
-        {
-            Err(CubieCubeConstructionError::EmptyCubicles)
-        } else {
-            Ok(Self { corners, edges })
-        }
+        Ok(Self {
+            corners: aux(corners)?,
+            edges: aux(edges)?,
+        })
     }
 
     pub fn random_possible() -> Self {
+        fn aux<C: Cubies, R: rand::Rng>(cubies: &mut C, rng: &mut R) {
+            let mut total_ori = C::Orientation::zero();
+            for cubicle in C::Cubicle::all().skip(1) {
+                let o = C::Orientation::random(rng);
+                total_ori = total_ori.add(o);
+                cubies[cubicle].set_orientation(o);
+            }
+            cubies[C::Cubicle::all().next().unwrap()].set_orientation(total_ori.inverse());
+
+            cubies.shuffle(rng);
+        }
+
         let Self {
             mut corners,
             mut edges,
         } = Self::SOLVED;
         let mut rng = rand::thread_rng();
 
-        let mut total_corner_ori = CornerOrientation::O0;
-        for cubicle in CornerCubicle::all().into_iter().skip(1) {
-            let o = CornerOrientation::random(&mut rng);
-            total_corner_ori = total_corner_ori.add(o);
-            corners[cubicle].set_orientation(o);
-        }
-        corners[CornerCubicle::C0].set_orientation(total_corner_ori.inverse());
+        aux(&mut corners, &mut rng);
+        aux(&mut edges, &mut rng);
 
-        let mut total_edge_ori = EdgeOrientation::O0;
-        for cubicle in EdgeCubicle::all().into_iter().skip(1) {
-            let o = EdgeOrientation::random(&mut rng);
-            total_edge_ori = total_edge_ori.add(o);
-            edges[cubicle].set_orientation(o);
-        }
-        edges[EdgeCubicle::C0].set_orientation(total_edge_ori.inverse());
-
-        corners.shuffle(&mut rng);
-        edges.shuffle(&mut rng);
-        if corner_2cycles(corners).count() & 1 != edge_2cycles(edges).count() & 1 {
+        if perm_2cycles(corners).count() + perm_2cycles(edges).count() & 1 == 1 {
             edges.swap(EdgeCubicle::C0, EdgeCubicle::C1);
         }
 
@@ -95,25 +91,18 @@ impl CubieCube {
     }
 
     pub fn is_possible_state(&self) -> bool {
-        let total_edge_orientation = self
-            .edges
-            .into_iter()
-            .map(|x| x.orientation())
-            .reduce(EdgeOrientation::add)
-            .unwrap();
-        let total_corner_orientation = self
-            .corners
-            .into_iter()
-            .map(|x| x.orientation())
-            .reduce(CornerOrientation::add)
-            .unwrap();
+        fn is_zero_ori<C: Cubies>(cubies: C) -> bool {
+            cubies
+                .into_iter()
+                .map(|x| x.orientation())
+                .reduce(C::Orientation::add)
+                .unwrap()
+                == C::Orientation::zero()
+        }
 
-        let corners_odd = corner_2cycles(self.corners).count() & 1 == 1;
-        let edges_odd = edge_2cycles(self.edges).count() & 1 == 1;
+        let total_2cycles = perm_2cycles(self.corners).count() + perm_2cycles(self.edges).count();
 
-        total_edge_orientation == EdgeOrientation::O0
-            && total_corner_orientation == CornerOrientation::O0
-            && corners_odd == edges_odd
+        is_zero_ori(self.corners) && is_zero_ori(self.edges) && total_2cycles & 1 == 0
     }
 
     #[must_use]
@@ -170,21 +159,20 @@ impl CubieCube {
 
     #[must_use]
     pub fn inverse(&self) -> Self {
+        fn aux<C: Cubies>(cubies: C, ret: &mut C) {
+            for (current, home) in cubies.into_iter().zip(C::Cubicle::all()) {
+                // The cubie that lives in `home` now has state `current`.
+                // So, the inverse has to put `current` back at `home`
+                ret[current.cubicle()] = C::Cubie::new(home, current.orientation().inverse());
+            }
+        }
+
         // Doesn't actually need to be `SOLVED`, but we just use that as initialization
         // to avoid MaybeUninit
         let mut ret = Self::SOLVED;
 
-        for (current, home) in self.corners.into_iter().zip(CornerCubicle::all()) {
-            // The cubie that lives in `home` now has state `current`.
-            // So, the inverse has to put `current` back at `home`
-            ret.corners[current.cubicle()] =
-                CornerCubie::new(home, current.orientation().inverse());
-        }
-        for (current, home) in self.edges.into_iter().zip(EdgeCubicle::all()) {
-            // The cubie that lives in `home` now has state `current`.
-            // So, the inverse has to put `current` back at `home`
-            ret.edges[current.cubicle()] = EdgeCubie::new(home, current.orientation().inverse());
-        }
+        aux(self.corners, &mut ret.corners);
+        aux(self.edges, &mut ret.edges);
 
         ret
     }
@@ -192,29 +180,24 @@ impl CubieCube {
     /// Multiply ("*" group operation) `self` by `rhs`.
     #[must_use]
     pub fn mul(&self, rhs: &Self) -> Self {
+        fn aux<C: Cubies>(lhs: C, rhs: C, ret: &mut C) {
+            for (lhs_state, home) in lhs.into_iter().zip(C::Cubicle::all()) {
+                // `home` goes to `lhs_state` by `lhs`.
+                // `lhs_state` goes to `rhs_state` by `rhs`.
+                let rhs_state = rhs[lhs_state.cubicle()];
+                ret[home] = C::Cubie::new(
+                    rhs_state.cubicle(),
+                    lhs_state.orientation().add(rhs_state.orientation()),
+                );
+            }
+        }
+
         // Doesn't actually need to be `SOLVED`, but we just use that as initialization
         // to avoid MaybeUninit
         let mut ret = Self::SOLVED;
 
-        for (self_state, home) in self.corners.into_iter().zip(CornerCubicle::all()) {
-            // `home` goes to `self_state` by `self`.
-            // `self_state` goes to `rhs_state` by `rhs`.
-            let rhs_state = rhs.corners[self_state.cubicle()];
-            ret.corners[home] = CornerCubie::new(
-                rhs_state.cubicle(),
-                self_state.orientation().add(rhs_state.orientation()),
-            );
-        }
-
-        for (self_state, home) in self.edges.into_iter().zip(EdgeCubicle::all()) {
-            // `home` goes to `self_state` by `self`.
-            // `self_state` goes to `rhs_state` by `rhs`.
-            let rhs_state = rhs.edges[self_state.cubicle()];
-            ret.edges[home] = EdgeCubie::new(
-                rhs_state.cubicle(),
-                self_state.orientation().add(rhs_state.orientation()),
-            );
-        }
+        aux(self.corners, rhs.corners, &mut ret.corners);
+        aux(self.edges, rhs.edges, &mut ret.edges);
 
         ret
     }

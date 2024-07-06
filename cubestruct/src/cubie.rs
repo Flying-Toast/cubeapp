@@ -2,29 +2,122 @@ use std::fmt;
 use std::mem::transmute;
 use std::ops::{Index, IndexMut};
 
+pub type Corners = CubicleArray<CornerCubie, 8>;
+pub type Edges = CubicleArray<EdgeCubie, 12>;
+
+pub trait Cubicle: fmt::Debug + Eq + Copy {
+    /// Enumerate all values of the type
+    fn all() -> impl Iterator<Item = Self>;
+}
+
+pub trait Orientation: fmt::Debug + Eq + Copy {
+    /// Enumerate all values of the type
+    fn all() -> impl Iterator<Item = Self>;
+
+    /// The zero orientation (all cubies in a solved cube have an orientation of zero)
+    fn zero() -> Self {
+        Self::all().next().unwrap()
+    }
+
+    /// Returns the orientation that needs to be applied to this `self`
+    /// orientation in order to return it to O0.
+    fn inverse(self) -> Self;
+
+    /// Combines two orientations
+    fn add(self, rhs: Self) -> Self;
+
+    /// Generate a random orientation
+    fn random<R: rand::Rng>(rng: &mut R) -> Self;
+}
+
+pub trait Cubie<C, O>: fmt::Debug + Eq + Copy + Sized {
+    #[must_use]
+    fn new(c: C, o: O) -> Self;
+
+    /// What cubicle this cubie is in
+    #[must_use]
+    fn cubicle(self) -> C;
+
+    /// Get the orientation of this cubie
+    #[must_use]
+    fn orientation(self) -> O;
+
+    /// Set this cubie's orientation in place
+    fn set_orientation(&mut self, o: O);
+}
+
+pub trait Cubies:
+    fmt::Debug
+    + Eq
+    + Copy
+    + IntoIterator<Item = Self::Cubie>
+    + Index<Self::Cubicle, Output = Self::Cubie>
+    + IndexMut<Self::Cubicle>
+{
+    type Cubicle: Cubicle;
+    type Orientation: Orientation;
+    type Cubie: Cubie<Self::Cubicle, Self::Orientation>;
+    /// Generic array that can be indexed by this cubie's cubicle type
+    type CubicleArray<T>: Index<Self::Cubicle, Output = T>
+        + IndexMut<Self::Cubicle>
+        + IntoIterator<Item = T>;
+
+    /// Swap the items at the given indices
+    fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle);
+
+    fn shuffle<R: rand::Rng>(&mut self, rng: &mut R);
+
+    /// Create a cubicle-indexed array with every element intialized to `init`.
+    fn new_array<T: Copy>(init: T) -> Self::CubicleArray<T>;
+}
+
+impl Cubies for Corners {
+    type Cubicle = CornerCubicle;
+    type Orientation = CornerOrientation;
+    type Cubie = CornerCubie;
+    type CubicleArray<T> = CubicleArray<T, 8>;
+
+    fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
+        self.0.swap(a as usize, b as usize)
+    }
+
+    fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
+        use rand::seq::SliceRandom;
+        self.0.shuffle(rng);
+    }
+
+    fn new_array<T: Copy>(init: T) -> Self::CubicleArray<T> {
+        CubicleArray::new([init; 8])
+    }
+}
+
+impl Cubies for Edges {
+    type Cubicle = EdgeCubicle;
+    type Orientation = EdgeOrientation;
+    type Cubie = EdgeCubie;
+    type CubicleArray<T> = CubicleArray<T, 12>;
+
+    fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
+        self.0.swap(a as usize, b as usize)
+    }
+
+    fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
+        use rand::seq::SliceRandom;
+        self.0.shuffle(rng);
+    }
+
+    fn new_array<T: Copy>(init: T) -> Self::CubicleArray<T> {
+        CubicleArray::new([init; 12])
+    }
+}
+
+/// Wrapper around `[T; N]` that is indexed by a cubicle instead of a usize.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct CubicleArray<T, const N: usize>([T; N]);
 
 impl<T, const N: usize> CubicleArray<T, N> {
     pub const fn new(items: [T; N]) -> Self {
         Self(items)
-    }
-
-    pub fn shuffle<R: rand::Rng>(&mut self, rng: &mut R) {
-        use rand::seq::SliceRandom;
-        self.0.shuffle(rng);
-    }
-}
-
-impl<T> CubicleArray<T, 8> {
-    pub fn swap(&mut self, a: CornerCubicle, b: CornerCubicle) {
-        self.0.swap(a as usize, b as usize);
-    }
-}
-
-impl<T> CubicleArray<T, 12> {
-    pub fn swap(&mut self, a: EdgeCubicle, b: EdgeCubicle) {
-        self.0.swap(a as usize, b as usize);
     }
 }
 
@@ -75,10 +168,10 @@ pub enum CornerCubicle {
     C7,
 }
 
-impl CornerCubicle {
-    pub fn all() -> [Self; 8] {
+impl Cubicle for CornerCubicle {
+    fn all() -> impl Iterator<Item = Self> {
         use CornerCubicle::*;
-        [C0, C1, C2, C3, C4, C5, C6, C7]
+        [C0, C1, C2, C3, C4, C5, C6, C7].into_iter()
     }
 }
 
@@ -93,15 +186,13 @@ pub enum CornerOrientation {
     O2,
 }
 
-impl CornerOrientation {
-    pub fn all() -> [Self; 3] {
+impl Orientation for CornerOrientation {
+    fn all() -> impl Iterator<Item = Self> {
         use CornerOrientation::*;
-        [O0, O1, O2]
+        [O0, O1, O2].into_iter()
     }
 
-    /// Returns the orientation that needs to be applied to this `self`
-    /// orientation in order to return it to O0.
-    pub fn inverse(self) -> Self {
+    fn inverse(self) -> Self {
         match self {
             Self::O0 => Self::O0,
             Self::O1 => Self::O2,
@@ -109,14 +200,13 @@ impl CornerOrientation {
         }
     }
 
-    /// Combines two orientations
-    pub fn add(self, rhs: Self) -> Self {
+    fn add(self, rhs: Self) -> Self {
         let sum = self as u8 + rhs as u8;
         // SAFETY: Modulo 3 always produces a value 0..=2, which are all valid `CornerOrientation`s
         unsafe { transmute::<u8, CornerOrientation>(sum % 3) }
     }
 
-    pub fn random<R: rand::Rng>(rng: &mut R) -> Self {
+    fn random<R: rand::Rng>(rng: &mut R) -> Self {
         unsafe { transmute::<u8, CornerOrientation>(rng.gen_range(0..=2)) }
     }
 }
@@ -138,24 +228,27 @@ impl fmt::Debug for CornerCubie {
 
 impl CornerCubie {
     #[must_use]
-    pub const fn new(p: CornerCubicle, o: CornerOrientation) -> Self {
-        Self(((o as u8) << 3) | (p as u8))
+    pub const fn new(c: CornerCubicle, o: CornerOrientation) -> Self {
+        Self(((o as u8) << 3) | (c as u8))
+    }
+}
+
+impl Cubie<CornerCubicle, CornerOrientation> for CornerCubie {
+    fn new(c: CornerCubicle, o: CornerOrientation) -> Self {
+        Self::new(c, o)
     }
 
-    /// What cubicle this corner is in
-    #[must_use]
-    pub const fn cubicle(self) -> CornerCubicle {
+    fn cubicle(self) -> CornerCubicle {
         // SAFETY: All possible 3-bit numbers are a valid CornerCubicle
         unsafe { transmute::<u8, CornerCubicle>(self.0 & 0b111) }
     }
 
-    #[must_use]
-    pub const fn orientation(self) -> CornerOrientation {
+    fn orientation(self) -> CornerOrientation {
         // SAFETY: All ways of constructing a `CornerCubie` preserve this invariant
         unsafe { transmute::<u8, CornerOrientation>(self.0 >> 3) }
     }
 
-    pub fn set_orientation(&mut self, o: CornerOrientation) {
+    fn set_orientation(&mut self, o: CornerOrientation) {
         *self = Self::new(self.cubicle(), o);
     }
 }
@@ -177,10 +270,10 @@ pub enum EdgeCubicle {
     C11,
 }
 
-impl EdgeCubicle {
-    pub fn all() -> [Self; 12] {
+impl Cubicle for EdgeCubicle {
+    fn all() -> impl Iterator<Item = Self> {
         use EdgeCubicle::*;
-        [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11]
+        [C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11].into_iter()
     }
 }
 
@@ -193,30 +286,26 @@ pub enum EdgeOrientation {
     O1,
 }
 
-impl EdgeOrientation {
-    pub fn all() -> [Self; 2] {
+impl Orientation for EdgeOrientation {
+    fn all() -> impl Iterator<Item = Self> {
         use EdgeOrientation::*;
-        [O0, O1]
+        [O0, O1].into_iter()
     }
 
-    /// Returns the orientation that needs to be applied to this `self`
-    /// orientation in order to return it to O0.
-    ///
-    /// *Edge* orientations are their own inverse:
+    /// Edge orientations are their own inverse:
     /// - Flipping a flipped edge flips it back to O0.
     /// - By not flipping an unflipped edge you stay at the unflipped
     /// orientation
-    pub fn inverse(self) -> Self {
+    fn inverse(self) -> Self {
         self
     }
 
-    /// Combines two orientations
-    pub fn add(self, rhs: Self) -> Self {
+    fn add(self, rhs: Self) -> Self {
         let sum = self as u8 + rhs as u8;
         unsafe { transmute::<u8, EdgeOrientation>(sum % 2) }
     }
 
-    pub fn random<R: rand::Rng>(rng: &mut R) -> Self {
+    fn random<R: rand::Rng>(rng: &mut R) -> Self {
         unsafe { transmute::<u8, EdgeOrientation>(rng.gen_range(0..=1)) }
     }
 }
@@ -238,24 +327,27 @@ impl fmt::Debug for EdgeCubie {
 
 impl EdgeCubie {
     #[must_use]
-    pub const fn new(p: EdgeCubicle, o: EdgeOrientation) -> Self {
-        Self(((p as u8) << 1) | (o as u8))
+    pub const fn new(c: EdgeCubicle, o: EdgeOrientation) -> Self {
+        Self(((c as u8) << 1) | (o as u8))
+    }
+}
+
+impl Cubie<EdgeCubicle, EdgeOrientation> for EdgeCubie {
+    fn new(c: EdgeCubicle, o: EdgeOrientation) -> Self {
+        Self::new(c, o)
     }
 
-    /// What cubicle this edge is in
-    #[must_use]
-    pub const fn cubicle(self) -> EdgeCubicle {
+    fn cubicle(self) -> EdgeCubicle {
         // SAFETY: Invariant upheld by constructors
         unsafe { transmute::<u8, EdgeCubicle>(self.0 >> 1) }
     }
 
-    #[must_use]
-    pub const fn orientation(self) -> EdgeOrientation {
+    fn orientation(self) -> EdgeOrientation {
         // SAFETY: All 1-bit numbers are a valid EdgeOrientation
         unsafe { transmute::<u8, EdgeOrientation>(self.0 & 1) }
     }
 
-    pub fn set_orientation(&mut self, o: EdgeOrientation) {
+    fn set_orientation(&mut self, o: EdgeOrientation) {
         *self = Self::new(self.cubicle(), o);
     }
 }

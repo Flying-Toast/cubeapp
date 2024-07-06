@@ -1,81 +1,40 @@
 use crate::cubie::*;
 
 #[derive(Debug)]
-struct CornerPerm2Cycles {
-    corners: CubicleArray<CornerCubie, 8>,
+struct Perm2Cycles<C> {
+    cubies: C,
 }
 
-impl CornerPerm2Cycles {
-    fn new(corners: CubicleArray<CornerCubie, 8>) -> Self {
-        Self { corners }
+impl<C: Cubies> Perm2Cycles<C> {
+    fn new(cubies: C) -> Self {
+        Self { cubies }
     }
 }
 
-impl Iterator for CornerPerm2Cycles {
-    type Item = (CornerCubicle, CornerCubicle);
+impl<C: Cubies> Iterator for Perm2Cycles<C> {
+    type Item = (C::Cubicle, C::Cubicle);
 
     fn next(&mut self) -> Option<Self::Item> {
         // ensure all cubicles appear
-        for c in CornerCubicle::all() {
-            assert!(self
-                .corners
-                .into_iter()
-                .find(|x| x.cubicle() == c)
-                .is_some());
+        for c in C::Cubicle::all() {
+            assert!(self.cubies.into_iter().find(|x| x.cubicle() == c).is_some());
         }
 
         let (first_unhomed_state, home) = self
-            .corners
+            .cubies
             .into_iter()
-            .zip(CornerCubicle::all())
+            .zip(C::Cubicle::all())
             .find(|(state, home)| state.cubicle() != *home)?;
 
         let ret = (first_unhomed_state.cubicle(), home);
-        self.corners.swap(ret.0, ret.1);
+        self.cubies.swap(ret.0, ret.1);
         Some(ret)
     }
 }
 
-pub fn corner_2cycles(corners: CubicleArray<CornerCubie, 8>) -> impl Iterator<Item = (CornerCubicle, CornerCubicle)> {
-    CornerPerm2Cycles::new(corners)
+pub fn perm_2cycles<C: Cubies>(cubies: C) -> impl Iterator<Item = (C::Cubicle, C::Cubicle)> {
+    Perm2Cycles::new(cubies)
 }
-
-#[derive(Debug)]
-struct EdgePerm2Cycles {
-    edges: CubicleArray<EdgeCubie, 12>,
-}
-
-impl EdgePerm2Cycles {
-    fn new(edges: CubicleArray<EdgeCubie, 12>) -> Self {
-        Self { edges }
-    }
-}
-
-impl Iterator for EdgePerm2Cycles {
-    type Item = (EdgeCubicle, EdgeCubicle);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // ensure all cubicles appear
-        for c in EdgeCubicle::all() {
-            assert!(self.edges.into_iter().find(|x| x.cubicle() == c).is_some());
-        }
-
-        let (first_unhomed_state, home) = self
-            .edges
-            .into_iter()
-            .zip(EdgeCubicle::all())
-            .find(|(state, home)| state.cubicle() != *home)?;
-
-        let ret = (first_unhomed_state.cubicle(), home);
-        self.edges.swap(ret.0, ret.1);
-        Some(ret)
-    }
-}
-
-pub fn edge_2cycles(edges: CubicleArray<EdgeCubie, 12>) -> impl Iterator<Item = (EdgeCubicle, EdgeCubicle)> {
-    EdgePerm2Cycles::new(edges)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,7 +44,7 @@ mod tests {
     fn corner_cycle_decomposition() {
         use CornerCubicle::*;
         assert_eq!(
-            CornerPerm2Cycles::new(CubicleArray::new([
+            Perm2Cycles::new(CubicleArray::new([
                 CornerCubie::new(C2, CornerOrientation::O0),
                 CornerCubie::new(C5, CornerOrientation::O0),
                 CornerCubie::new(C6, CornerOrientation::O0),
@@ -99,7 +58,7 @@ mod tests {
             vec![(C2, C0), (C6, C0), (C3, C0), (C5, C1), (C4, C1), (C7, C1)]
         );
         assert_eq!(
-            CornerPerm2Cycles::new(CubicleArray::new([
+            Perm2Cycles::new(CubicleArray::new([
                 CornerCubie::new(C0, CornerOrientation::O0),
                 CornerCubie::new(C1, CornerOrientation::O0),
                 CornerCubie::new(C2, CornerOrientation::O0),
@@ -118,7 +77,7 @@ mod tests {
     fn edge_cycle_decomposition() {
         use EdgeCubicle::*;
         assert_eq!(
-            EdgePerm2Cycles::new(CubicleArray::new([
+            Perm2Cycles::new(CubicleArray::new([
                 EdgeCubie::new(C8, EdgeOrientation::O0),
                 EdgeCubie::new(C6, EdgeOrientation::O0),
                 EdgeCubie::new(C1, EdgeOrientation::O0),
@@ -147,7 +106,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            EdgePerm2Cycles::new(CubicleArray::new([
+            Perm2Cycles::new(CubicleArray::new([
                 EdgeCubie::new(C0, EdgeOrientation::O0),
                 EdgeCubie::new(C1, EdgeOrientation::O0),
                 EdgeCubie::new(C2, EdgeOrientation::O0),
