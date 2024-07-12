@@ -51,7 +51,7 @@ struct CubeApp {
 impl CubeApp {
     fn new(app: adw::Application, tx: EventSender) -> Self {
         let builder =
-            gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/main-window.ui");
+            gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/main-window.ui");
         let window: adw::ApplicationWindow = builder.object("window").unwrap();
         window.set_application(Some(&app));
 
@@ -131,17 +131,17 @@ fn main() {
     adw::init().unwrap();
 
     let application = adw::Application::builder()
-        .application_id("io.github.flying-toast.puzzle-time")
+        .application_id("io.github.flying_toast.PuzzleTime")
         .build();
 
     application.connect_startup(|_| {
-        gio::resources_register_include!("puzzle-time.gresource").unwrap();
+        gio::resources_register_include!("PuzzleTime.gresource").unwrap();
         gtk::IconTheme::for_display(&gdk::Display::default().unwrap())
-            .add_resource_path("/io/github/flying-toast/puzzle-time/icons");
+            .add_resource_path("/io/github/flying_toast/PuzzleTime/icons");
 
         // load CSS
         let provider = gtk::CssProvider::new();
-        provider.load_from_resource("/io/github/flying-toast/puzzle-time/main.css");
+        provider.load_from_resource("/io/github/flying_toast/PuzzleTime/main.css");
         gtk::style_context_add_provider_for_display(
             &gdk::Display::default().unwrap(),
             &provider,

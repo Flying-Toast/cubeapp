@@ -800,19 +800,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gui"
-version = "0.1.0"
-dependencies = [
- "futures",
- "glib-build-tools",
- "gtk4",
- "libadwaita",
- "qiyi_smartcube",
- "smartcube",
- "tokio",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1111,6 +1098,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e719e8df665df0d1c8fbfd238015744736151d4445ec0836b8e628aae103b77"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "puzzletime"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "glib-build-tools",
+ "gtk4",
+ "libadwaita",
+ "qiyi_smartcube",
+ "smartcube",
+ "tokio",
 ]
 
 [[package]]

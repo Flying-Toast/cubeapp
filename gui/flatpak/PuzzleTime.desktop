@@ -1,0 +1,7 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Puzzle Time
+Comment=Speedcubing Timer
+Icon=io.github.flying_toast.PuzzleTime
+Exec=puzzletime

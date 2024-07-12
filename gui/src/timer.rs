@@ -14,7 +14,7 @@ pub struct Timer {
 
 impl Timer {
     pub fn new(tx: EventSender) -> Self {
-        let builder = gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/timer.ui");
+        let builder = gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/timer.ui");
         Self {
             tx,
             main_box: builder.object("main_box").unwrap(),

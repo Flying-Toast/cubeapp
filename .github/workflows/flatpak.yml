@@ -1,0 +1,20 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build flatpak bundle
+        run: |
+          sudo apt install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          cd gui
+          flatpak-builder --user --install-deps-from=flathub --repo=repo --install flatpak_build flatpak/PuzzleTime.yml
+          flatpak build-bundle repo PuzzleTime.flatpak io.github.flying_toast.PuzzleTime --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PuzzleTime.flatpak
+          path: gui/PuzzleTime.flatpak

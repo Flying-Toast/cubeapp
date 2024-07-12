@@ -1,0 +1,35 @@
+app-id: io.github.flying_toast.PuzzleTime
+runtime: org.gnome.Platform
+runtime-version: "46"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: puzzletime
+finish-args:
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+modules:
+  - name: blueprint-compiler
+    buildsystem: meson
+    cleanup:
+      - "*"
+    sources:
+      - type: git
+        url: https://gitlab.gnome.org/jwestman/blueprint-compiler.git
+        tag: main
+  - name: puzzletime
+    sources:
+      - type: dir
+        path: ../../
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+    build-commands:
+      - PATH="$PATH:/usr/lib/sdk/rust-stable/bin" cargo build --manifest-path gui/Cargo.toml --release
+      - mkdir -p /app/share/icons/hicolor/scalable/apps/ /app/share/icons/hicolor/symbolic/apps/ /app/bin/ /app/share/applications/
+      - cp gui/target/release/puzzletime /app/bin/puzzletime
+      - cp gui/flatpak/PuzzleTime.svg /app/share/icons/hicolor/scalable/apps/io.github.flying_toast.PuzzleTime.svg
+      - cp gui/flatpak/PuzzleTime-symbolic.svg /app/share/icons/hicolor/symbolic/apps/io.github.flying_toast.PuzzleTime-symbolic.svg
+      - cp gui/flatpak/PuzzleTime.desktop /app/share/applications/io.github.flying_toast.PuzzleTime.desktop

@@ -24,7 +24,7 @@ pub struct Stats {
 
 impl Stats {
     pub fn new(tx: EventSender) -> Self {
-        let builder = gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/stats.ui");
+        let builder = gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/stats.ui");
         let statuspage: adw::StatusPage = builder.object("statuspage").unwrap();
         let listview_factory: gtk::SignalListItemFactory =
             builder.object("listview_factory").unwrap();
@@ -283,7 +283,7 @@ struct StatItemUi {
 impl StatItemUi {
     fn new() -> Self {
         let builder =
-            gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/stat-item.ui");
+            gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/stat-item.ui");
 
         Self {
             bindings: Vec::new(),
@@ -301,7 +301,7 @@ impl StatItemUi {
 /// `index`: index of the given `stat`
 pub fn stat_info_dialog(tx: EventSender, stat: &SolveStat, index: u32) -> adw::Dialog {
     let builder =
-        gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/stat-info-dialog.ui");
+        gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/stat-info-dialog.ui");
     let root = builder.object::<adw::Dialog>("root").unwrap();
     let delete_button: gtk::Button = builder.object("delete_button").unwrap();
 

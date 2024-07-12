@@ -33,7 +33,7 @@ fn tokio() -> &'static Runtime {
 impl Bluetooth {
     pub fn new(tx: EventSender, toaster: adw::ToastOverlay) -> Self {
         let builder =
-            gtk::Builder::from_resource("/io/github/flying-toast/puzzle-time/bluetooth-dialog.ui");
+            gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/bluetooth-dialog.ui");
         let dialog: adw::Dialog = builder.object("root").unwrap();
         let tx2 = tx.clone();
         dialog.connect_closed(move |_| {
