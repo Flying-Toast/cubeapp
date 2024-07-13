@@ -218,9 +218,9 @@ impl Stats {
             .map(|idx| self.get_stat(idx).unwrap().get_time())
             .collect::<Vec<_>>();
 
-        let num_dnfs = times.iter().filter(|x| x.is_none()).count();
+        let num_dnfs = times.iter().filter(|x| x.is_none()).count() as u32;
 
-        if num_dnfs == self.length() as usize {
+        if num_dnfs == self.length() {
             return Average::Dnf;
         }
 
@@ -233,7 +233,7 @@ impl Stats {
 
         let sum: Duration = times.iter().flatten().sum();
 
-        Average::Some(sum / self.length())
+        Average::Some(sum / (self.length() - num_dnfs))
     }
 
     fn best_ao5(&self) -> Average {
