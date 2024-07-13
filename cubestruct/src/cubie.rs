@@ -48,6 +48,14 @@ pub trait Cubie<C, O>: fmt::Debug + Eq + Copy + Sized {
 
     /// Set this cubie's orientation in place
     fn set_orientation(&mut self, o: O);
+
+    /// Adds the given orientation to `self`'s orientation, in place.
+    fn add_orientation(&mut self, o: O)
+    where
+        O: Orientation,
+    {
+        self.set_orientation(self.orientation().add(o));
+    }
 }
 
 pub trait Cubies:
@@ -163,7 +171,7 @@ impl<T> IndexMut<EdgeCubicle> for CubicleArray<T, 12> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
 pub enum CornerCubicle {
-    C0 = 0,
+    C0,
     C1,
     C2,
     C3,
@@ -188,7 +196,7 @@ impl Cubicle for CornerCubicle {
 #[repr(u8)]
 pub enum CornerOrientation {
     /// No twist
-    O0 = 0,
+    O0,
     /// Clockwise twist
     O1,
     /// Counterclockwise twist
@@ -269,7 +277,7 @@ impl Cubie<CornerCubicle, CornerOrientation> for CornerCubie {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
 pub enum EdgeCubicle {
-    C0 = 0,
+    C0,
     C1,
     C2,
     C3,
@@ -298,7 +306,7 @@ impl Cubicle for EdgeCubicle {
 #[repr(u8)]
 pub enum EdgeOrientation {
     /// Not flipped
-    O0 = 0,
+    O0,
     /// Flipped
     O1,
 }

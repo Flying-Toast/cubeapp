@@ -1,7 +1,8 @@
 use crate::cubie::*;
 use crate::facelet_cube::FaceletCube;
 use crate::iter_2cycles::perm_2cycles;
-use std::ops::Index;
+use crate::Move;
+use std::ops::{Index, Mul, MulAssign};
 
 /// Corner cubicle numbering:
 /// ```text
@@ -28,7 +29,7 @@ use std::ops::Index;
 /// ```
 ///
 /// A cubie is said to "live"/have a "home" in a cubicle if the cubie belongs in that cubicle *for a solved cube*.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct CubieCube {
     /// `corners[i]` is the state of the corner whose home is cubicle `i`.
     /// e.g. `corners[C4].cubicle()` returns the cubicle in which the cubie that lives at C4 currently is located.
@@ -169,29 +170,63 @@ impl CubieCube {
         ret
     }
 
-    /// Multiply ("*" group operation) `self` by `rhs`.
-    #[must_use]
-    pub fn mul(&self, rhs: &Self) -> Self {
-        fn aux<C: Cubies>(lhs: C, rhs: C, ret: &mut C) {
-            for (lhs_state, home) in lhs.into_iter().zip(C::Cubicle::all()) {
-                // `home` goes to `lhs_state` by `lhs`.
-                // `lhs_state` goes to `rhs_state` by `rhs`.
-                let rhs_state = rhs[lhs_state.cubicle()];
-                ret[home] = C::Cubie::new(
-                    rhs_state.cubicle(),
-                    lhs_state.orientation().add(rhs_state.orientation()),
-                );
+    pub fn apply_move(&mut self, moov: Move) {
+        match moov {
+            Move::L => {
+                *self *= LMOVE;
+            }
+            Move::Li => {
+                *self *= LMOVE * LMOVE * LMOVE;
+            }
+            Move::L2 => {
+                *self *= LMOVE * LMOVE;
+            }
+            Move::R => {
+                *self *= RMOVE;
+            }
+            Move::Ri => {
+                *self *= RMOVE * RMOVE * RMOVE;
+            }
+            Move::R2 => {
+                *self *= RMOVE * RMOVE;
+            }
+            Move::D => {
+                *self *= DMOVE;
+            }
+            Move::Di => {
+                *self *= DMOVE * DMOVE * DMOVE;
+            }
+            Move::D2 => {
+                *self *= DMOVE * DMOVE;
+            }
+            Move::U => {
+                *self *= UMOVE;
+            }
+            Move::Ui => {
+                *self *= UMOVE * UMOVE * UMOVE;
+            }
+            Move::U2 => {
+                *self *= UMOVE * UMOVE;
+            }
+            Move::F => {
+                *self *= FMOVE;
+            }
+            Move::Fi => {
+                *self *= FMOVE * FMOVE * FMOVE;
+            }
+            Move::F2 => {
+                *self *= FMOVE * FMOVE;
+            }
+            Move::B => {
+                *self *= BMOVE;
+            }
+            Move::Bi => {
+                *self *= BMOVE * BMOVE * BMOVE;
+            }
+            Move::B2 => {
+                *self = BMOVE * BMOVE;
             }
         }
-
-        // Doesn't actually need to be `SOLVED`, but we just use that as initialization
-        // to avoid MaybeUninit
-        let mut ret = Self::SOLVED;
-
-        aux(self.corners, rhs.corners, &mut ret.corners);
-        aux(self.edges, rhs.edges, &mut ret.edges);
-
-        ret
     }
 }
 
@@ -206,6 +241,39 @@ impl Index<EdgeCubicle> for CubieCube {
     type Output = EdgeCubie;
     fn index(&self, index: EdgeCubicle) -> &Self::Output {
         &self.edges[index]
+    }
+}
+
+impl Mul<CubieCube> for CubieCube {
+    type Output = Self;
+
+    fn mul(self, rhs: CubieCube) -> Self::Output {
+        fn aux<C: Cubies>(lhs: C, rhs: C, ret: &mut C) {
+            for (lhs_state, home) in lhs.into_iter().zip(C::Cubicle::all()) {
+                // `home` goes to `lhs_state` by `lhs`.
+                // `lhs_state` goes to `rhs_state` by `rhs`.
+                let rhs_state = rhs[lhs_state.cubicle()];
+                ret[home] = C::Cubie::new(
+                    rhs_state.cubicle(),
+                    lhs_state.orientation().add(rhs_state.orientation()),
+                );
+            }
+        }
+
+        // Doesn't actually need to be `SOLVED`, but we just use that as initialization
+        // to avoid MaybeUninit
+        let mut ret = CubieCube::SOLVED;
+
+        aux(self.corners, rhs.corners, &mut ret.corners);
+        aux(self.edges, rhs.edges, &mut ret.edges);
+
+        ret
+    }
+}
+
+impl MulAssign<CubieCube> for CubieCube {
+    fn mul_assign(&mut self, rhs: CubieCube) {
+        *self = self.mul(rhs);
     }
 }
 
@@ -249,30 +317,43 @@ mod tests {
     }
 
     #[test]
+    fn move_application() {
+        use Move::*;
+        let mut tperm = CubieCube::SOLVED;
+        for moov in [R, U, Ri, Ui, Ri, F, R2, Ui, Ri, Ui, R, U, Ri, Fi] {
+            tperm.apply_move(moov);
+        }
+
+        assert_eq!(tperm, TPERM);
+
+        let mut rmove = CubieCube::SOLVED;
+        rmove.apply_move(R);
+        assert_eq!(rmove, RMOVE);
+        rmove.apply_move(Ri);
+        assert_eq!(rmove, CubieCube::SOLVED);
+    }
+
+    #[test]
     fn group_ops() {
         assert_eq!(CubieCube::SOLVED, CubieCube::SOLVED.inverse());
-        assert_eq!(CubieCube::SOLVED.mul(&CubieCube::SOLVED), CubieCube::SOLVED);
-        assert_eq!(RMOVE.mul(&CubieCube::SOLVED), RMOVE);
-        assert_eq!(CubieCube::SOLVED.mul(&TPERM), TPERM);
+        assert_eq!(CubieCube::SOLVED * CubieCube::SOLVED, CubieCube::SOLVED);
+        assert_eq!(RMOVE * CubieCube::SOLVED, RMOVE);
+        assert_eq!(CubieCube::SOLVED * TPERM, TPERM);
 
         assert_eq!(TPERM.inverse(), TPERM);
-        assert_eq!(TPERM.mul(&TPERM.inverse()), CubieCube::SOLVED);
-        assert_eq!(TPERM.mul(&TPERM), CubieCube::SOLVED);
+        assert_eq!(TPERM * TPERM.inverse(), CubieCube::SOLVED);
+        assert_eq!(TPERM * TPERM, CubieCube::SOLVED);
 
         assert_ne!(RMOVE.inverse(), RMOVE);
         assert_ne!(RMOVE.inverse(), CubieCube::SOLVED);
-        assert_ne!(RMOVE.mul(&RMOVE), RMOVE);
-        assert_ne!(RMOVE.mul(&RMOVE), CubieCube::SOLVED);
-        assert_ne!(RMOVE.mul(&RMOVE).mul(&RMOVE), RMOVE);
-        assert_ne!(RMOVE.mul(&RMOVE).mul(&RMOVE), CubieCube::SOLVED);
-        assert_eq!(RMOVE.mul(&RMOVE).mul(&RMOVE).mul(&RMOVE), CubieCube::SOLVED);
+        assert_ne!(RMOVE * RMOVE, RMOVE);
+        assert_ne!(RMOVE * RMOVE, CubieCube::SOLVED);
+        assert_ne!(RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
+        assert_eq!(RMOVE * RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
 
         assert_eq!(
             CubieCube::SOLVED,
-            TPERM
-                .mul(&RMOVE)
-                .mul(&RMOVE.inverse())
-                .mul(&TPERM.inverse())
+            TPERM * RMOVE * RMOVE.inverse() * TPERM.inverse()
         );
     }
 
@@ -310,31 +391,166 @@ mod tests {
             ])
         },
     };
-
-    const RMOVE: CubieCube = CubieCube {
-        corners: CubicleArray::new([
-            CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0),
-            CornerCubie::new(CornerCubicle::C5, CornerOrientation::O2),
-            CornerCubie::new(CornerCubicle::C2, CornerOrientation::O0),
-            CornerCubie::new(CornerCubicle::C1, CornerOrientation::O1),
-            CornerCubie::new(CornerCubicle::C4, CornerOrientation::O0),
-            CornerCubie::new(CornerCubicle::C7, CornerOrientation::O1),
-            CornerCubie::new(CornerCubicle::C6, CornerOrientation::O0),
-            CornerCubie::new(CornerCubicle::C3, CornerOrientation::O2),
-        ]),
-        edges: CubicleArray::new([
-            EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
-            EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
-        ]),
-    };
 }
+
+const RMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O2),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
+    ]),
+};
+
+const UMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O0),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
+    ]),
+};
+
+const FMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O1),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O1),
+    ]),
+};
+
+const LMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O0),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
+    ]),
+};
+
+const BMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O1),
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O2),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O0),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O1),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
+    ]),
+};
+
+const DMOVE: CubieCube = CubieCube {
+    corners: CubicleArray::new([
+        CornerCubie::new(CornerCubicle::C0, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C1, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C2, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C3, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C6, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C4, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C7, CornerOrientation::O0),
+        CornerCubie::new(CornerCubicle::C5, CornerOrientation::O0),
+    ]),
+    edges: CubicleArray::new([
+        EdgeCubie::new(EdgeCubicle::C0, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C1, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C2, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C3, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C4, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C5, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C6, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C7, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C9, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C11, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C8, EdgeOrientation::O0),
+        EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
+    ]),
+};

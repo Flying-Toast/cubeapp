@@ -1,8 +1,7 @@
 use crate::crc::crc16;
 use anyhow::{anyhow, bail, Result};
 use btleplug::api::BDAddr;
-use cubestruct::{Color, CubieCube, FaceletCube};
-use std::fmt;
+use cubestruct::{Color, CubieCube, FaceletCube, Move};
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -75,66 +74,29 @@ pub struct CubeHello {
     pub battery: u8,
 }
 
-#[derive(Debug)]
-pub enum Turn {
-    Li,
-    L,
-    Ri,
-    R,
-    Di,
-    D,
-    Ui,
-    U,
-    Fi,
-    F,
-    Bi,
-    B,
-}
-
-impl Turn {
-    fn from_byte(x: u8) -> Result<Turn> {
-        Ok(match x {
-            1 => Self::Li,
-            2 => Self::L,
-            3 => Self::Ri,
-            4 => Self::R,
-            5 => Self::Di,
-            6 => Self::D,
-            7 => Self::Ui,
-            8 => Self::U,
-            9 => Self::Fi,
-            10 => Self::F,
-            11 => Self::Bi,
-            12 => Self::B,
-            _ => bail!(ParseError::BadTurn { turn: x }),
-        })
-    }
-}
-
-impl fmt::Display for Turn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Li => write!(f, "L'"),
-            Self::L => write!(f, "L"),
-            Self::Ri => write!(f, "R'"),
-            Self::R => write!(f, "R"),
-            Self::Di => write!(f, "D'"),
-            Self::D => write!(f, "D"),
-            Self::Ui => write!(f, "U'"),
-            Self::U => write!(f, "U"),
-            Self::Fi => write!(f, "F'"),
-            Self::F => write!(f, "F"),
-            Self::Bi => write!(f, "B'"),
-            Self::B => write!(f, "B"),
-        }
-    }
+fn move_from_byte(x: u8) -> Result<Move> {
+    Ok(match x {
+        1 => Move::Li,
+        2 => Move::L,
+        3 => Move::Ri,
+        4 => Move::R,
+        5 => Move::Di,
+        6 => Move::D,
+        7 => Move::Ui,
+        8 => Move::U,
+        9 => Move::Fi,
+        10 => Move::F,
+        11 => Move::Bi,
+        12 => Move::B,
+        _ => bail!(ParseError::BadTurn { turn: x }),
+    })
 }
 
 #[derive(Debug)]
 pub struct StateChange {
     pub state: CubieCube,
     pub battery: u8,
-    pub turn: Turn,
+    pub turn: Move,
     pub needs_ack: bool,
 }
 
@@ -243,7 +205,7 @@ pub fn parse_c2a_message(bytes: &[u8]) -> Result<C2aMessage> {
             };
 
             C2aBody::StateChange(StateChange {
-                turn: Turn::from_byte(turnbyte)?,
+                turn: move_from_byte(turnbyte)?,
                 state,
                 needs_ack,
                 battery,
