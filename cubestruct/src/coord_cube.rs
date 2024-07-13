@@ -79,6 +79,24 @@ fn udslice_bitmask_to_coord(bitmask: u16) -> u16 {
     })[bitmask as usize]
 }
 
+fn udslice_coord_to_bitmask(coord: u16) -> u16 {
+    debug_assert!((0..495).contains(&coord));
+
+    static TABLE: OnceLock<[u16; 496]> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut ret = [0; 496];
+        let mut idx = 0;
+        for i in 0u16..=0xf00 {
+            if i.count_ones() == 4 {
+                let i = ((i << 8) & 0xf00) | (i >> 4);
+                ret[idx] = i;
+                idx += 1;
+            }
+        }
+        ret
+    })[coord as usize]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,6 +117,16 @@ mod tests {
             "Invalid udslice coord: {}",
             c.udslice
         );
+    }
+
+    #[test]
+    fn udslice_to_from_bitmask() {
+        for i in 0u16..=0xf00 {
+            if i.count_ones() == 4 {
+                println!("{i:b}");
+                assert_eq!(udslice_coord_to_bitmask(udslice_bitmask_to_coord(i)), i);
+            }
+        }
     }
 
     #[test]
