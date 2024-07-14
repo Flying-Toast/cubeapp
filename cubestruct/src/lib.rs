@@ -31,6 +31,15 @@ pub enum Move {
     B2,
 }
 
+impl Move {
+    pub fn all() -> [Self; 18] {
+        use Move::*;
+        [
+            Li, L, L2, Ri, R, R2, Di, D, D2, Ui, U, U2, Fi, F, F2, Bi, B, B2,
+        ]
+    }
+}
+
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
