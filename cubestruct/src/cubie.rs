@@ -1,6 +1,7 @@
+use crate::coord_cube::CoordCube;
 use std::fmt;
 use std::mem::transmute;
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Range};
 
 pub type Corners = CubicleArray<CornerCubie, 8>;
 pub type Edges = CubicleArray<EdgeCubie, 12>;
@@ -32,6 +33,10 @@ pub trait Orientation: fmt::Debug + Eq + Copy {
     fn random<R: rand::Rng>(rng: &mut R) -> Self;
 
     fn as_u8(self) -> u8;
+
+    fn from_u8(x: u8) -> Option<Self> {
+        Self::all().nth(x as usize)
+    }
 }
 
 pub trait Cubie<C, O>: fmt::Debug + Eq + Copy + Sized {
@@ -49,13 +54,8 @@ pub trait Cubie<C, O>: fmt::Debug + Eq + Copy + Sized {
     /// Set this cubie's orientation in place
     fn set_orientation(&mut self, o: O);
 
-    /// Adds the given orientation to `self`'s orientation, in place.
-    fn add_orientation(&mut self, o: O)
-    where
-        O: Orientation,
-    {
-        self.set_orientation(self.orientation().add(o));
-    }
+    /// Set this cubie's cubicle in place
+    fn set_cubicle(&mut self, c: C);
 }
 
 pub trait Cubies:
@@ -75,6 +75,9 @@ pub trait Cubies:
         + IndexMut<Self::Cubicle>
         + IntoIterator<Item = T>;
 
+    /// Valid range of the orientation coordinate for this type of cubie
+    const ORI_COORD_RANGE: Range<u16>;
+
     /// Swap the items at the given indices
     fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle);
 
@@ -89,6 +92,8 @@ impl Cubies for Corners {
     type Orientation = CornerOrientation;
     type Cubie = CornerCubie;
     type CubicleArray<T: Copy> = CubicleArray<T, 8>;
+
+    const ORI_COORD_RANGE: Range<u16> = CoordCube::CORNER_ORI_RANGE;
 
     fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
         self.0.swap(a as usize, b as usize)
@@ -109,6 +114,8 @@ impl Cubies for Edges {
     type Orientation = EdgeOrientation;
     type Cubie = EdgeCubie;
     type CubicleArray<T: Copy> = CubicleArray<T, 12>;
+
+    const ORI_COORD_RANGE: Range<u16> = CoordCube::EDGE_ORI_RANGE;
 
     fn swap(&mut self, a: Self::Cubicle, b: Self::Cubicle) {
         self.0.swap(a as usize, b as usize)
@@ -272,6 +279,10 @@ impl Cubie<CornerCubicle, CornerOrientation> for CornerCubie {
     fn set_orientation(&mut self, o: CornerOrientation) {
         *self = Self::new(self.cubicle(), o);
     }
+
+    fn set_cubicle(&mut self, c: CornerCubicle) {
+        *self = Self::new(c, self.orientation());
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -378,6 +389,10 @@ impl Cubie<EdgeCubicle, EdgeOrientation> for EdgeCubie {
 
     fn set_orientation(&mut self, o: EdgeOrientation) {
         *self = Self::new(self.cubicle(), o);
+    }
+
+    fn set_cubicle(&mut self, c: EdgeCubicle) {
+        *self = Self::new(c, self.orientation());
     }
 }
 

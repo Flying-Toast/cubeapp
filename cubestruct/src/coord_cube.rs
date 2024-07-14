@@ -1,6 +1,6 @@
 use crate::cubie::*;
 use crate::CubieCube;
-use std::ops::Index;
+use std::ops::Range;
 use std::sync::OnceLock;
 
 #[derive(Debug)]
@@ -17,46 +17,20 @@ pub struct CoordCube {
 }
 
 impl CoordCube {
+    pub(crate) const CORNER_ORI_RANGE: Range<u16> = 0..2187;
+    pub(crate) const EDGE_ORI_RANGE: Range<u16> = 0..2048;
+    pub(crate) const UDSLICE_RANGE: Range<u16> = 0..495;
+
     fn from_cubie_cube(cubie_cube: &CubieCube) -> Self {
-        fn get_ori_coord<C: Cubies>(cubie_cube: &CubieCube) -> u16
-        where
-            CubieCube: Index<C::Cubicle, Output = C::Cubie>,
-        {
-            let base = C::Orientation::all().count() as u16;
-            let mut sum = 0;
-            let max_cubicle = C::Cubicle::all().rev().next().unwrap();
-            for home_cubicle in C::Cubicle::all() {
-                let state = cubie_cube[home_cubicle];
-                if state.cubicle() == max_cubicle {
-                    continue;
-                }
-                sum +=
-                    base.pow(state.cubicle().as_u8().into()) * state.orientation().as_u8() as u16;
-            }
-            sum
-        }
-
-        let udslice_cubicles = [
-            EdgeCubicle::C4,
-            EdgeCubicle::C5,
-            EdgeCubicle::C6,
-            EdgeCubicle::C7,
-        ];
-        let mut mask = 0;
-        for home_cubicle in udslice_cubicles {
-            let loc = cubie_cube[home_cubicle].cubicle();
-            mask |= 1 << loc.as_u8();
-        }
-
         Self {
-            corner_ori: get_ori_coord::<Corners>(cubie_cube),
-            edge_ori: get_ori_coord::<Edges>(cubie_cube),
-            udslice: udslice_bitmask_to_coord(mask),
+            corner_ori: cubie_cube.get_ori_coord::<Corners>(),
+            edge_ori: cubie_cube.get_ori_coord::<Edges>(),
+            udslice: cubie_cube.get_udslice_coord(),
         }
     }
 }
 
-fn udslice_bitmask_to_coord(bitmask: u16) -> u16 {
+pub(crate) fn udslice_bitmask_to_coord(bitmask: u16) -> u16 {
     debug_assert!(
         bitmask.count_ones() == 4,
         "wrong # of bits set: {bitmask:b}"
@@ -79,7 +53,7 @@ fn udslice_bitmask_to_coord(bitmask: u16) -> u16 {
     })[bitmask as usize]
 }
 
-fn udslice_coord_to_bitmask(coord: u16) -> u16 {
+pub(crate) fn udslice_coord_to_bitmask(coord: u16) -> u16 {
     debug_assert!((0..495).contains(&coord));
 
     static TABLE: OnceLock<[u16; 496]> = OnceLock::new();
@@ -103,17 +77,17 @@ mod tests {
 
     fn assert_valid_ranges(c: &CoordCube) {
         assert!(
-            (0..2187).contains(&c.corner_ori),
+            CoordCube::CORNER_ORI_RANGE.contains(&c.corner_ori),
             "Invalid corner_ori coord: {}",
             c.corner_ori
         );
         assert!(
-            (0..2048).contains(&c.edge_ori),
+            CoordCube::EDGE_ORI_RANGE.contains(&c.edge_ori),
             "Invalid edge_ori coord: {}",
             c.edge_ori
         );
         assert!(
-            (0..495).contains(&c.udslice),
+            CoordCube::UDSLICE_RANGE.contains(&c.udslice),
             "Invalid udslice coord: {}",
             c.udslice
         );

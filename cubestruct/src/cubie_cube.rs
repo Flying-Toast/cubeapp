@@ -2,7 +2,7 @@ use crate::cubie::*;
 use crate::facelet_cube::FaceletCube;
 use crate::iter_2cycles::perm_2cycles;
 use crate::Move;
-use std::ops::{Index, Mul, MulAssign};
+use std::ops::{Index, IndexMut, Mul, MulAssign};
 
 /// Corner cubicle numbering:
 /// ```text
@@ -46,14 +46,10 @@ impl CubieCube {
         edges: Edges,
     ) -> Result<Self, CubieCubeConstructionError> {
         fn aux<C: Cubies>(cubies: C) -> Result<C, CubieCubeConstructionError> {
-            let mut seen = C::new_array(false);
-            for i in cubies {
-                seen[i.cubicle()] = true;
-            }
-            if seen.into_iter().any(|x| x == false) {
-                Err(CubieCubeConstructionError::EmptyCubicles)
-            } else {
+            if all_cubies_seen::<C>(cubies) {
                 Ok(cubies)
+            } else {
+                Err(CubieCubeConstructionError::EmptyCubicles)
             }
         }
 
@@ -85,7 +81,7 @@ impl CubieCube {
         aux(&mut corners, &mut rng);
         aux(&mut edges, &mut rng);
 
-        if perm_2cycles(corners).count() + perm_2cycles(edges).count() & 1 == 1 {
+        if (perm_2cycles(corners).count() + perm_2cycles(edges).count()) & 1 == 1 {
             edges.swap(EdgeCubicle::C0, EdgeCubicle::C1);
         }
 
@@ -228,6 +224,98 @@ impl CubieCube {
             }
         }
     }
+
+    pub(crate) fn set_ori_coord<C: Cubies>(&mut self, coord: u16)
+    where
+        Self: Index<C::Cubicle, Output = C::Cubie> + IndexMut<C::Cubicle>,
+    {
+        debug_assert!(C::ORI_COORD_RANGE.contains(&coord));
+        let base = C::Orientation::all().count() as u16;
+        let max_cubicle = C::Cubicle::all().last().unwrap();
+        let mut max_cubicle_home = None;
+        let mut total_ori = C::Orientation::zero();
+        for home_cubicle in C::Cubicle::all() {
+            let state = self[home_cubicle];
+            if state.cubicle() == max_cubicle {
+                max_cubicle_home = Some(home_cubicle);
+                continue;
+            }
+            let divided = if state.cubicle().as_u8() == 0 {
+                coord
+            } else {
+                coord / base.pow(state.cubicle().as_u8().into())
+            };
+            let digit = divided % base;
+            let target_ori = C::Orientation::from_u8(digit.try_into().unwrap()).unwrap();
+            total_ori = total_ori.add(target_ori);
+            self[home_cubicle].set_orientation(target_ori);
+        }
+        self[max_cubicle_home.unwrap()].set_orientation(total_ori.inverse());
+    }
+
+    pub(crate) fn get_ori_coord<C: Cubies>(&self) -> u16
+    where
+        Self: Index<C::Cubicle, Output = C::Cubie>,
+    {
+        let base = C::Orientation::all().count() as u16;
+        let mut sum = 0;
+        let max_cubicle = C::Cubicle::all().last().unwrap();
+        for home_cubicle in C::Cubicle::all() {
+            let state = self[home_cubicle];
+            if state.cubicle() == max_cubicle {
+                continue;
+            }
+            sum += base.pow(state.cubicle().as_u8().into()) * state.orientation().as_u8() as u16;
+        }
+        sum
+    }
+
+    pub(crate) fn get_udslice_coord(&self) -> u16 {
+        let udslice_cubicles = [
+            EdgeCubicle::C4,
+            EdgeCubicle::C5,
+            EdgeCubicle::C6,
+            EdgeCubicle::C7,
+        ];
+
+        let mut mask = 0;
+        for home_cubicle in udslice_cubicles {
+            let loc = self[home_cubicle].cubicle();
+            mask |= 1 << loc.as_u8();
+        }
+
+        crate::coord_cube::udslice_bitmask_to_coord(mask)
+    }
+
+    pub(crate) fn set_udslice_coord(&mut self, coord: u16) {
+        debug_assert!(crate::coord_cube::CoordCube::UDSLICE_RANGE.contains(&coord));
+        let mask = crate::coord_cube::udslice_coord_to_bitmask(coord);
+
+        let mut udslice_cubicles = [
+            EdgeCubicle::C4,
+            EdgeCubicle::C5,
+            EdgeCubicle::C6,
+            EdgeCubicle::C7,
+        ]
+        .into_iter();
+        let mut non_udslice_cubicles = {
+            use EdgeCubicle::*;
+            [C0, C1, C2, C3, C8, C9, C10, C11].into_iter()
+        };
+
+        for (i, cubicle) in <Edges as Cubies>::Cubicle::all().enumerate() {
+            if mask & (1 << i) == 0 {
+                self.edges[non_udslice_cubicles.next().unwrap()].set_cubicle(cubicle);
+            } else {
+                self.edges[udslice_cubicles.next().unwrap()].set_cubicle(cubicle);
+            }
+        }
+
+        // maintain possibleness
+        if (perm_2cycles(self.corners).count() + perm_2cycles(self.edges).count()) & 1 == 1 {
+            self.edges.swap(EdgeCubicle::C0, EdgeCubicle::C1);
+        }
+    }
 }
 
 impl Index<CornerCubicle> for CubieCube {
@@ -237,10 +325,22 @@ impl Index<CornerCubicle> for CubieCube {
     }
 }
 
+impl IndexMut<CornerCubicle> for CubieCube {
+    fn index_mut(&mut self, index: CornerCubicle) -> &mut Self::Output {
+        &mut self.corners[index]
+    }
+}
+
 impl Index<EdgeCubicle> for CubieCube {
     type Output = EdgeCubie;
     fn index(&self, index: EdgeCubicle) -> &Self::Output {
         &self.edges[index]
+    }
+}
+
+impl IndexMut<EdgeCubicle> for CubieCube {
+    fn index_mut(&mut self, index: EdgeCubicle) -> &mut Self::Output {
+        &mut self.edges[index]
     }
 }
 
@@ -283,114 +383,12 @@ pub enum CubieCubeConstructionError {
     EmptyCubicles,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn possible_states() {
-        assert!(CubieCube::SOLVED.is_possible_state());
-        assert!(TPERM.is_possible_state());
-        assert!(RMOVE.is_possible_state());
-        let one_edge_flipped = {
-            let mut ret = CubieCube::SOLVED;
-            ret.edges[EdgeCubicle::C0].set_orientation(EdgeOrientation::O1);
-            ret
-        };
-        assert!(!one_edge_flipped.is_possible_state());
-
-        let two_corners_swapped = {
-            let mut ret = CubieCube::SOLVED;
-            ret.corners.swap(CornerCubicle::C0, CornerCubicle::C1);
-            ret
-        };
-
-        assert!(!two_corners_swapped.is_possible_state());
+fn all_cubies_seen<C: Cubies>(cubies: C) -> bool {
+    let mut seen = C::new_array(false);
+    for i in cubies {
+        seen[i.cubicle()] = true;
     }
-
-    #[test]
-    fn random_possible_states_are_possible() {
-        for _ in 0..1000 {
-            let state = CubieCube::random_possible();
-            assert!(state.is_possible_state(), "{state:?}");
-        }
-    }
-
-    #[test]
-    fn move_application() {
-        use Move::*;
-        let mut tperm = CubieCube::SOLVED;
-        for moov in [R, U, Ri, Ui, Ri, F, R2, Ui, Ri, Ui, R, U, Ri, Fi] {
-            tperm.apply_move(moov);
-        }
-
-        assert_eq!(tperm, TPERM);
-
-        let mut rmove = CubieCube::SOLVED;
-        rmove.apply_move(R);
-        assert_eq!(rmove, RMOVE);
-        rmove.apply_move(Ri);
-        assert_eq!(rmove, CubieCube::SOLVED);
-    }
-
-    #[test]
-    fn group_ops() {
-        assert_eq!(CubieCube::SOLVED, CubieCube::SOLVED.inverse());
-        assert_eq!(CubieCube::SOLVED * CubieCube::SOLVED, CubieCube::SOLVED);
-        assert_eq!(RMOVE * CubieCube::SOLVED, RMOVE);
-        assert_eq!(CubieCube::SOLVED * TPERM, TPERM);
-
-        assert_eq!(TPERM.inverse(), TPERM);
-        assert_eq!(TPERM * TPERM.inverse(), CubieCube::SOLVED);
-        assert_eq!(TPERM * TPERM, CubieCube::SOLVED);
-
-        assert_ne!(RMOVE.inverse(), RMOVE);
-        assert_ne!(RMOVE.inverse(), CubieCube::SOLVED);
-        assert_ne!(RMOVE * RMOVE, RMOVE);
-        assert_ne!(RMOVE * RMOVE, CubieCube::SOLVED);
-        assert_ne!(RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
-        assert_eq!(RMOVE * RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
-
-        assert_eq!(
-            CubieCube::SOLVED,
-            TPERM * RMOVE * RMOVE.inverse() * TPERM.inverse()
-        );
-    }
-
-    const TPERM: CubieCube = CubieCube {
-        corners: {
-            use CornerCubicle::*;
-            use CornerOrientation::O0;
-            CubicleArray::new([
-                CornerCubie::new(C0, O0),
-                CornerCubie::new(C3, O0),
-                CornerCubie::new(C2, O0),
-                CornerCubie::new(C1, O0),
-                CornerCubie::new(C4, O0),
-                CornerCubie::new(C5, O0),
-                CornerCubie::new(C6, O0),
-                CornerCubie::new(C7, O0),
-            ])
-        },
-        edges: {
-            use EdgeCubicle::*;
-            use EdgeOrientation::O0;
-            CubicleArray::new([
-                EdgeCubie::new(C0, O0),
-                EdgeCubie::new(C2, O0),
-                EdgeCubie::new(C1, O0),
-                EdgeCubie::new(C3, O0),
-                EdgeCubie::new(C4, O0),
-                EdgeCubie::new(C5, O0),
-                EdgeCubie::new(C6, O0),
-                EdgeCubie::new(C7, O0),
-                EdgeCubie::new(C8, O0),
-                EdgeCubie::new(C9, O0),
-                EdgeCubie::new(C10, O0),
-                EdgeCubie::new(C11, O0),
-            ])
-        },
-    };
+    seen.into_iter().all(|x| x == true)
 }
 
 const RMOVE: CubieCube = CubieCube {
@@ -554,3 +552,142 @@ const DMOVE: CubieCube = CubieCube {
         EdgeCubie::new(EdgeCubicle::C10, EdgeOrientation::O0),
     ]),
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn possible_states() {
+        assert!(CubieCube::SOLVED.is_possible_state());
+        assert!(TPERM.is_possible_state());
+        assert!(RMOVE.is_possible_state());
+        let one_edge_flipped = {
+            let mut ret = CubieCube::SOLVED;
+            ret.edges[EdgeCubicle::C0].set_orientation(EdgeOrientation::O1);
+            ret
+        };
+        assert!(!one_edge_flipped.is_possible_state());
+
+        let two_corners_swapped = {
+            let mut ret = CubieCube::SOLVED;
+            ret.corners.swap(CornerCubicle::C0, CornerCubicle::C1);
+            ret
+        };
+
+        assert!(!two_corners_swapped.is_possible_state());
+    }
+
+    #[test]
+    fn set_udslice_coord() {
+        let mut cube = CubieCube::SOLVED;
+        for coord in crate::coord_cube::CoordCube::UDSLICE_RANGE {
+            cube.set_udslice_coord(coord);
+            assert_eq!(cube.get_udslice_coord(), coord);
+            assert!(cube.is_possible_state());
+            assert!(all_cubies_seen(cube.edges));
+        }
+    }
+
+    #[test]
+    fn set_ori_coord() {
+        fn aux<C: Cubies>()
+        where
+            CubieCube: Index<C::Cubicle, Output = C::Cubie> + IndexMut<C::Cubicle>,
+        {
+            let mut cube = CubieCube::SOLVED;
+            for coord in C::ORI_COORD_RANGE {
+                cube.set_ori_coord::<C>(coord);
+                assert!(cube.is_possible_state());
+                assert_eq!(cube.get_ori_coord::<C>(), coord);
+            }
+        }
+
+        aux::<Corners>();
+        aux::<Edges>();
+    }
+
+    #[test]
+    fn random_possible_states_are_possible() {
+        for _ in 0..1000 {
+            let state = CubieCube::random_possible();
+            assert!(state.is_possible_state(), "{state:?}");
+        }
+    }
+
+    #[test]
+    fn move_application() {
+        use Move::*;
+        let mut tperm = CubieCube::SOLVED;
+        for moov in [R, U, Ri, Ui, Ri, F, R2, Ui, Ri, Ui, R, U, Ri, Fi] {
+            tperm.apply_move(moov);
+        }
+
+        assert_eq!(tperm, TPERM);
+
+        let mut rmove = CubieCube::SOLVED;
+        rmove.apply_move(R);
+        assert_eq!(rmove, RMOVE);
+        rmove.apply_move(Ri);
+        assert_eq!(rmove, CubieCube::SOLVED);
+    }
+
+    #[test]
+    fn group_ops() {
+        assert_eq!(CubieCube::SOLVED, CubieCube::SOLVED.inverse());
+        assert_eq!(CubieCube::SOLVED * CubieCube::SOLVED, CubieCube::SOLVED);
+        assert_eq!(RMOVE * CubieCube::SOLVED, RMOVE);
+        assert_eq!(CubieCube::SOLVED * TPERM, TPERM);
+
+        assert_eq!(TPERM.inverse(), TPERM);
+        assert_eq!(TPERM * TPERM.inverse(), CubieCube::SOLVED);
+        assert_eq!(TPERM * TPERM, CubieCube::SOLVED);
+
+        assert_ne!(RMOVE.inverse(), RMOVE);
+        assert_ne!(RMOVE.inverse(), CubieCube::SOLVED);
+        assert_ne!(RMOVE * RMOVE, RMOVE);
+        assert_ne!(RMOVE * RMOVE, CubieCube::SOLVED);
+        assert_ne!(RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
+        assert_eq!(RMOVE * RMOVE * RMOVE * RMOVE, CubieCube::SOLVED);
+
+        assert_eq!(
+            CubieCube::SOLVED,
+            TPERM * RMOVE * RMOVE.inverse() * TPERM.inverse()
+        );
+    }
+
+    const TPERM: CubieCube = CubieCube {
+        corners: {
+            use CornerCubicle::*;
+            use CornerOrientation::O0;
+            CubicleArray::new([
+                CornerCubie::new(C0, O0),
+                CornerCubie::new(C3, O0),
+                CornerCubie::new(C2, O0),
+                CornerCubie::new(C1, O0),
+                CornerCubie::new(C4, O0),
+                CornerCubie::new(C5, O0),
+                CornerCubie::new(C6, O0),
+                CornerCubie::new(C7, O0),
+            ])
+        },
+        edges: {
+            use EdgeCubicle::*;
+            use EdgeOrientation::O0;
+            CubicleArray::new([
+                EdgeCubie::new(C0, O0),
+                EdgeCubie::new(C2, O0),
+                EdgeCubie::new(C1, O0),
+                EdgeCubie::new(C3, O0),
+                EdgeCubie::new(C4, O0),
+                EdgeCubie::new(C5, O0),
+                EdgeCubie::new(C6, O0),
+                EdgeCubie::new(C7, O0),
+                EdgeCubie::new(C8, O0),
+                EdgeCubie::new(C9, O0),
+                EdgeCubie::new(C10, O0),
+                EdgeCubie::new(C11, O0),
+            ])
+        },
+    };
+}
