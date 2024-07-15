@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use std::fmt::Write;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
@@ -10,20 +11,26 @@ pub struct Timer {
     redlight: adw::Bin,
     greenlight: adw::Bin,
     time_label: gtk::Label,
+    scramble_label: gtk::Label,
+    current_scramble: Vec<cubestruct::Move>,
 }
 
 impl Timer {
     pub fn new(tx: EventSender) -> Self {
         let builder = gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/timer.ui");
-        Self {
+        let mut this = Self {
             tx,
             main_box: builder.object("main_box").unwrap(),
             redlight: builder.object("redlight").unwrap(),
             greenlight: builder.object("greenlight").unwrap(),
             time_label: builder.object("time_label").unwrap(),
+            scramble_label: builder.object("scramble").unwrap(),
             start_time: None,
             update_timeout: None,
-        }
+            current_scramble: Vec::new(),
+        };
+        this.gen_new_scramble();
+        this
     }
 
     pub fn widget(&self) -> &impl IsA<gtk::Widget> {
@@ -84,6 +91,30 @@ impl Timer {
     fn set_displayed_time(&self, dur: &Duration, show_hunds: bool) {
         self.time_label.set_label(&render_time(dur, show_hunds));
     }
+
+    pub fn current_scramble(&self) -> &[cubestruct::Move] {
+        &self.current_scramble
+    }
+
+    /// Get the current scramble, replacing it with a newly generated random one
+    pub fn take_scramble(&mut self) -> Vec<cubestruct::Move> {
+        let ret = self.current_scramble.clone();
+        self.gen_new_scramble();
+        ret
+    }
+
+    fn gen_new_scramble(&mut self) {
+        // TODO: actually generate scrambles lol
+        if self.current_scramble.is_empty() {
+            use cubestruct::Move::*;
+            self.current_scramble = vec![
+                D, F2, D2, Ui, F2, R2, F2, Ri, D, L, Bi, Li, B, F2, Di, Fi, L, Bi, Ui,
+            ];
+        }
+        self.current_scramble.reverse();
+        self.scramble_label
+            .set_label(&render_moveseq(&self.current_scramble, true));
+    }
 }
 
 pub fn render_time(dur: &Duration, show_hunds: bool) -> String {
@@ -107,6 +138,18 @@ pub fn render_time(dur: &Duration, show_hunds: bool) -> String {
             format!("{mins}:{secs:02}.{}", hunds / 10)
         }
     }
+}
+
+pub fn render_moveseq(moves: &[cubestruct::Move], double_space: bool) -> String {
+    let mut s = format!("{}", moves[0]);
+    for moov in moves.iter().skip(1) {
+        if double_space {
+            write!(s, "  {moov}").unwrap();
+        } else {
+            write!(s, " {moov}").unwrap();
+        }
+    }
+    s
 }
 
 #[cfg(test)]

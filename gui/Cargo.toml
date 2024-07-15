@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+cubestruct = { path = "../cubestruct" }
 smartcube = { path = "../smartcube" }
 qiyi_smartcube = { path = "../qiyi_smartcube" }
 gtk = { package = "gtk4", version = "0.8", features = ["v4_14"] }

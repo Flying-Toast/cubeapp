@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use crate::stats::Penalty;
-use std::cell::Cell;
+use std::cell::{Cell, OnceCell};
 use std::time::Duration;
 
 glib::wrapper! {
@@ -8,12 +8,13 @@ glib::wrapper! {
 }
 
 impl SolveStat {
-    pub fn new(tx: EventSender, time: Duration) -> Self {
+    pub fn new(tx: EventSender, time: Duration, scramble: Vec<cubestruct::Move>) -> Self {
         let this: Self = glib::Object::builder().build();
         let imp = this.imp();
 
         imp.time.set(time);
         imp.tx.set(Some(tx));
+        imp.scramble.set(scramble).unwrap();
 
         let tx2 = this.get_tx();
         this.connect_notify(None, move |_, _| send_evt(tx2.clone(), Event::StatsChanged));
@@ -28,12 +29,16 @@ impl SolveStat {
     }
 
     /// Returns `None` if DNF
-    pub fn get_time(&self) -> Option<Duration> {
+    pub fn time(&self) -> Option<Duration> {
         match self.penalty() {
             Penalty::None => Some(self.imp().time.get()),
             Penalty::Plus2 => Some(self.imp().time.get() + Duration::from_secs(2)),
             Penalty::Dnf => None,
         }
+    }
+
+    pub fn scramble(&self) -> &[cubestruct::Move] {
+        self.imp().scramble.get().unwrap()
     }
 }
 
@@ -44,6 +49,7 @@ pub struct SolveStatImp {
     #[property(get, set, builder(Penalty::None))]
     penalty: Cell<Penalty>,
     tx: Cell<Option<EventSender>>,
+    scramble: OnceCell<Vec<cubestruct::Move>>,
 }
 
 #[glib::object_subclass]
@@ -86,7 +92,7 @@ impl ObjectImpl for SolveStatImp {
     fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "time-string" => {
-                if let Some(dur) = self.obj().get_time() {
+                if let Some(dur) = self.obj().time() {
                     crate::timer::render_time(&dur, true).to_value()
                 } else {
                     "DNF".to_value()

@@ -120,7 +120,7 @@ impl CubeApp {
     fn stop_timer(&mut self) {
         self.timer.lights_off();
         let elapsed_time = self.timer.stop();
-        let stat = SolveStat::new(self.tx.clone(), elapsed_time);
+        let stat = SolveStat::new(self.tx.clone(), elapsed_time, self.timer.take_scramble());
         self.stats.append_stat(&stat);
     }
 }

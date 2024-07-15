@@ -179,7 +179,7 @@ impl Stats {
 
     fn ao5_at(&self, start_idx: u32) -> Average {
         let mut times = (start_idx..start_idx + 5)
-            .map(|idx| self.get_stat(idx).unwrap().get_time())
+            .map(|idx| self.get_stat(idx).unwrap().time())
             .collect::<Vec<_>>();
 
         let num_dnfs = times.iter().filter(|x| x.is_none()).count();
@@ -205,7 +205,7 @@ impl Stats {
 
     fn session_average(&self) -> Average {
         let mut times = (0..self.length())
-            .map(|idx| self.get_stat(idx).unwrap().get_time())
+            .map(|idx| self.get_stat(idx).unwrap().time())
             .collect::<Vec<_>>();
 
         let num_dnfs = times.iter().filter(|x| x.is_none()).count() as u32;
@@ -294,13 +294,25 @@ pub fn stat_info_dialog(tx: EventSender, stat: &SolveStat, index: u32) -> adw::D
         gtk::Builder::from_resource("/io/github/flying_toast/PuzzleTime/stat-info-dialog.ui");
     let root = builder.object::<adw::Dialog>("root").unwrap();
     let delete_button: gtk::Button = builder.object("delete_button").unwrap();
+    let copy_scramble: gtk::Button = builder.object("copy_scramble").unwrap();
+    let toasts: adw::ToastOverlay = builder.object("toasts").unwrap();
+    let scramblerow: adw::ActionRow = builder.object("scramblerow").unwrap();
 
+    scramblerow.set_title(&crate::timer::render_moveseq(stat.scramble(), true));
     root.set_title(&format!("Result {}", index + 1));
 
     let root2 = root.clone();
     delete_button.connect_clicked(move |_| {
         root2.close();
         send_evt(tx.clone(), Event::DeleteStat(index));
+    });
+    let stat2 = stat.clone();
+    copy_scramble.connect_clicked(move |_| {
+        gdk::Display::default()
+            .unwrap()
+            .clipboard()
+            .set_text(&crate::timer::render_moveseq(stat2.scramble(), false));
+        toasts.add_toast(adw::Toast::new("Copied to clipboard"));
     });
 
     root
