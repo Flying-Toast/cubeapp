@@ -79,16 +79,6 @@ impl Stats {
                     })
                     .sync_create()
                     .build(),
-                item.bind_property("penalty", &ui.time_label, "css-classes")
-                    .transform_to(|_, penalty: Penalty| {
-                        Some(match penalty {
-                            Penalty::None => ["numeric"].as_slice(),
-                            Penalty::Plus2 => ["warning", "numeric"].as_slice(),
-                            Penalty::Dnf => ["error", "numeric"].as_slice(),
-                        })
-                    })
-                    .sync_create()
-                    .build(),
                 item.bind_property("time-string", &ui.time_label, "label")
                     .sync_create()
                     .build(),

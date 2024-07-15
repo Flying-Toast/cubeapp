@@ -15,37 +15,35 @@ Adw.ApplicationWindow window {
 	height-request: 300;
 	title: "Puzzle Time";
 	content: Adw.ToastOverlay toasts {
-		Adw.ToolbarView {
-			top-bar-style: raised;
-
-			[top]
-			Adw.HeaderBar {
-				[start]
-				MenuButton {
-					icon-name: "open-menu-symbolic";
-					menu-model: main_menu;
-				}
-
-				[end]
-				ToggleButton sidebar_toggle {
-					icon-name: "sidebar-show-right-symbolic";
-					visible: bind stats_pane.collapsed;
-					active: true;
-				}
-			}
-
-			content: Adw.OverlaySplitView stats_pane {
-				sidebar-position: end;
+			Adw.OverlaySplitView stats_split {
+				sidebar-position: start;
 				sidebar-width-fraction: 0.4;
 				show-sidebar: bind sidebar_toggle.active bidirectional;
-			};
-		}
+
+				content: Adw.ToolbarView timer_tbview {
+					[top]
+					Adw.HeaderBar {
+						[start]
+						ToggleButton sidebar_toggle {
+							icon-name: "sidebar-show-right-symbolic";
+							visible: bind stats_split.collapsed;
+							active: true;
+						}
+
+						[end]
+						MenuButton {
+							icon-name: "open-menu-symbolic";
+							menu-model: main_menu;
+						}
+					}
+				};
+			}
 	};
 
 	Adw.Breakpoint {
 		condition ("max-width: 600sp")
 		setters {
-			stats_pane.collapsed: true;
+			stats_split.collapsed: true;
 		}
 	}
 }

@@ -95,9 +95,10 @@ impl CubeApp {
         window.add_controller(key_controller);
 
         let stats = stats::Stats::new(tx.clone());
-        let stats_pane: adw::OverlaySplitView = builder.object("stats_pane").unwrap();
-        stats_pane.set_sidebar(Some(stats.widget()));
-        stats_pane.set_content(Some(timer.widget()));
+        let timer_tbview: adw::ToolbarView = builder.object("timer_tbview").unwrap();
+        timer_tbview.set_content(Some(timer.widget()));
+        let stats_split: adw::OverlaySplitView = builder.object("stats_split").unwrap();
+        stats_split.set_sidebar(Some(stats.widget()));
 
         window.present();
 
